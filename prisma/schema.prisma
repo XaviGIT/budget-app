@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  balance      Float
+  type         AccountType
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("accounts")
+}
+
+model Category {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  icon         String
+  transactions Transaction[]
+  budgets      Budget[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("categories")
+}
+
+model Payee {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  icon         String
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("payees")
+}
+
+model Transaction {
+  id         String   @id @default(cuid())
+  date       DateTime
+  payee      Payee    @relation(fields: [payeeId], references: [id])
+  payeeId    String
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String
+  account    Account  @relation(fields: [accountId], references: [id])
+  accountId  String
+  memo       String?
+  outflow    Float?
+  inflow     Float?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("transactions")
+}
+
+model Budget {
+  id            String    @id @default(cuid())
+  category      Category  @relation(fields: [categoryId], references: [id])
+  categoryId    String
+  month         String // YYYY-MM format
+  targetMonthly Float
+  assigned      Float     @default(0)
+  spent         Float     @default(0)
+  targetTotal   Float?
+  targetDate    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("budgets")
+}
+
+enum AccountType {
+  CREDIT
+  DEBIT
+}
