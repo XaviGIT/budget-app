@@ -48,3 +48,9 @@ To do a migration (in dev environment):
 ```
 npx prisma migrate dev --name NAME_OF_MIGRATION
 ```
+
+To see the local databases:
+
+```
+npx prisma studio
+```

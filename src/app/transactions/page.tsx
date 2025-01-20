@@ -1,8 +1,9 @@
-import { Suspense } from "react"
 import { TransactionsTable } from "@/components/transactions/transactions-table"
 import { prisma } from "@/lib/prisma"
 
 async function getTransactions() {
+  "use server"
+
   const transactions = await prisma.transaction.findMany({
     include: {
       account: {
@@ -37,9 +38,7 @@ export default async function TransactionsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Transactions</h1>
       </div>
-      <Suspense fallback={<div>Loading transactions...</div>}>
-        <TransactionsTable transactions={transactions} />
-      </Suspense>
+      <TransactionsTable transactions={transactions} />
     </div>
   )
 }

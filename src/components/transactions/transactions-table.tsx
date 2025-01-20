@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatCurrency } from "@/lib/utils"
+import { format } from "date-fns"
 
 type Transaction = {
   id: string
@@ -45,7 +46,7 @@ export function TransactionsTable({ transactions }: { transactions: Transaction[
           {transactions.map((transaction) => (
             <TableRow key={transaction.id}>
               <TableCell>
-                {new Date(transaction.date).toLocaleDateString()}
+                {format(new Date(transaction.date), 'dd/MM/yyyy')}
               </TableCell>
               <TableCell>{transaction.account.name}</TableCell>
               <TableCell>{transaction.payee.name}</TableCell>
