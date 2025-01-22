@@ -1,6 +1,7 @@
 import { TransactionsTable } from "@/components/transactions/transactions-table"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { format } from "date-fns"
 
 async function getData() {
   const [transactions, accounts, categories, payees] = await Promise.all([
@@ -43,8 +44,13 @@ async function getData() {
     })
   ])
 
+  const formattedTransactions = transactions.map(transaction => ({
+    ...transaction,
+    formattedDate: format(transaction.date, 'dd/MM/yyyy')
+  }))
+
   return {
-    transactions,
+    transactions: formattedTransactions,
     accounts,
     categories,
     payees

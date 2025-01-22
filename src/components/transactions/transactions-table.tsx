@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
   Table,
   TableBody,
@@ -9,21 +9,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { formatCurrency } from "@/lib/utils"
-import { format } from "date-fns"
 
 type Transaction = {
   id: string
   date: Date
+  formattedDate: string
   account: {
     name: string
   }
@@ -86,7 +80,6 @@ export function TransactionsTable({
 
   const handleSubmit = async () => {
     await onAddTransaction(formData)
-    // Reset form
     setFormData({
       date: new Date().toISOString().split('T')[0],
       accountId: '',
@@ -97,23 +90,57 @@ export function TransactionsTable({
     })
   }
 
+  const accountGroups = useMemo(() => [
+    {
+      label: "Debit Accounts",
+      items: accounts
+        .filter(account => account.type === 'DEBIT')
+        .map(account => ({
+          value: account.id,
+          label: account.name
+        }))
+    },
+    {
+      label: "Credit Accounts",
+      items: accounts
+        .filter(account => account.type === 'CREDIT')
+        .map(account => ({
+          value: account.id,
+          label: account.name
+        }))
+    }
+  ], [accounts])
+
+  const payeeItems = useMemo(() =>
+    payees.map(payee => ({
+      value: payee.id,
+      label: payee.name
+    }))
+  , [payees])
+
+  const categoryItems = useMemo(() =>
+    categories.map(category => ({
+      value: category.id,
+      label: category.name
+    }))
+  , [categories])
+
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Account</TableHead>
+          <TableRow>{/* Remove whitespace between cells */}
+            <TableHead className="w-32">Date</TableHead>
+            <TableHead className="w-[20%]">Account</TableHead>
             <TableHead>Payee</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Memo</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
-            <TableHead></TableHead>
+            <TableHead className="w-[20%]">Category</TableHead>
+            <TableHead className="w-40">Memo</TableHead>
+            <TableHead className="w-32 text-right">Amount</TableHead>
+            <TableHead className="w-20" />
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {/* Form Row */}
-          <TableRow className="bg-muted/50">
+        <TableBody>{/* Remove whitespace between rows */}
+          <TableRow className="bg-muted/50">{/* Form row cells with no whitespace */}
             <TableCell>
               <Input
                 type="date"
@@ -122,55 +149,30 @@ export function TransactionsTable({
               />
             </TableCell>
             <TableCell>
-              <Select
+              <SearchableSelect
+                placeholder="Select account"
                 value={formData.accountId}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, accountId: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(value) => setFormData(prev => ({ ...prev, accountId: value }))}
+                groups={accountGroups}
+              />
             </TableCell>
+
             <TableCell>
-              <Select
+              <SearchableSelect
+                placeholder="Select payee"
                 value={formData.payeeId}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, payeeId: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {payees.map((payee) => (
-                    <SelectItem key={payee.id} value={payee.id}>
-                      {payee.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(value) => setFormData(prev => ({ ...prev, payeeId: value }))}
+                items={payeeItems}
+              />
             </TableCell>
+
             <TableCell>
-              <Select
+              <SearchableSelect
+                placeholder="Select category"
                 value={formData.categoryId}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
+                items={categoryItems}
+              />
             </TableCell>
             <TableCell>
               <Input
@@ -192,17 +194,15 @@ export function TransactionsTable({
             <TableCell>
               <Button
                 onClick={handleSubmit}
-                disabled={!formData.accountId || !formData.payeeId || !formData.categoryId || !formData.amount}
-              >
+                disabled={!formData.accountId || !formData.payeeId || !formData.categoryId || !formData.amount}>
                 Add
               </Button>
             </TableCell>
           </TableRow>
-          {/* Transaction Rows */}
           {transactions.map((transaction) => (
             <TableRow key={transaction.id}>
               <TableCell>
-                {format(new Date(transaction.date), 'dd/MM/yyyy')}
+                {transaction.formattedDate} {/* Use the formatted date */}
               </TableCell>
               <TableCell>{transaction.account.name}</TableCell>
               <TableCell>{transaction.payee.name}</TableCell>
@@ -213,7 +213,7 @@ export function TransactionsTable({
                   ? `-${formatCurrency(transaction.outflow)}`
                   : formatCurrency(transaction.inflow || 0)}
               </TableCell>
-              <TableCell></TableCell>
+              <TableCell />
             </TableRow>
           ))}
         </TableBody>
