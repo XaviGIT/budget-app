@@ -13,10 +13,24 @@ model Account {
   balance      Float
   type         AccountType
   transactions Transaction[]
+  payee        Payee? // One-to-one relation with Payee
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   @@map("accounts")
+}
+
+model Payee {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  icon         String
+  account      Account?      @relation(fields: [accountId], references: [id]) // Optional relation to Account
+  accountId    String?       @unique // Make it unique for one-to-one
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("payees")
 }
 
 model Category {
@@ -29,17 +43,6 @@ model Category {
   updatedAt    DateTime      @updatedAt
 
   @@map("categories")
-}
-
-model Payee {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  icon         String
-  transactions Transaction[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  @@map("payees")
 }
 
 model Transaction {

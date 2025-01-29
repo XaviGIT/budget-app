@@ -133,15 +133,52 @@ async function addTransaction(data: any) {
 
   const amount = parseFloat(data.amount)
 
-  await prisma.transaction.create({
-    data: {
-      date: new Date(data.date),
-      accountId: data.accountId,
-      payeeId: data.payeeId,
-      categoryId: data.categoryId,
-      memo: data.memo,
-      outflow: amount < 0 ? Math.abs(amount) : null,
-      inflow: amount > 0 ? amount : null,
+  // Get account details
+  const [sourceAccount, payee] = await Promise.all([
+    prisma.account.findUnique({ where: { id: data.accountId } }),
+    prisma.payee.findUnique({
+      where: { id: data.payeeId },
+      include: { account: true } // If the payee is also an account
+    })
+  ])
+
+  if (!sourceAccount) throw new Error("Account not found")
+
+  // Start a transaction to ensure all updates are atomic
+  await prisma.$transaction(async (tx) => {
+    // Create the transaction record
+    await tx.transaction.create({
+      data: {
+        date: new Date(data.date),
+        accountId: data.accountId,
+        payeeId: data.payeeId,
+        categoryId: data.categoryId,
+        memo: data.memo,
+        outflow: amount < 0 ? Math.abs(amount) : null,
+        inflow: amount > 0 ? amount : null,
+      }
+    })
+
+    // Update source account balance
+    const sourceBalanceChange = sourceAccount.type === 'CREDIT'
+      ? amount  // For credit accounts, positive amount reduces liability
+      : -amount // For debit accounts, positive amount reduces balance
+
+    await tx.account.update({
+      where: { id: sourceAccount.id },
+      data: { balance: { increment: sourceBalanceChange } }
+    })
+
+    // If payee is an account, update its balance too
+    if (payee?.account) {
+      const targetBalanceChange = payee.account.type === 'CREDIT'
+        ? -amount // Opposite of source account
+        : amount
+
+      await tx.account.update({
+        where: { id: payee.account.id },
+        data: { balance: { increment: targetBalanceChange } }
+      })
     }
   })
 

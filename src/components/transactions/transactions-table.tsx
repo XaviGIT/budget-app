@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { formatCurrency } from "@/lib/utils"
 import { TableHeaderCell } from "@/components/transactions/transactions-table-header-cell"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 
 type Transaction = {
   id: string
@@ -112,19 +113,15 @@ export function TransactionsTable({
     }
   ], [accounts])
 
-  const payeeItems = useMemo(() =>
-    payees.map(payee => ({
-      value: payee.id,
-      label: payee.name
-    }))
-  , [payees])
-
-  const categoryItems = useMemo(() =>
-    categories.map(category => ({
-      value: category.id,
-      label: category.name
-    }))
-  , [categories])
+  const handleKeyDown = async (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      // Check if form is ready to submit
+      if (formData.accountId && formData.payeeId && formData.categoryId && formData.amount) {
+        await handleSubmit()
+      }
+    }
+  }
 
   return (
     <div className="rounded-md border">
@@ -153,22 +150,45 @@ export function TransactionsTable({
                 onChange={(value) => setFormData(prev => ({ ...prev, accountId: value }))}
                 groups={accountGroups}
             /></TableCell>
-            <TableCell><SearchableSelect
+            <TableCell><ComboboxWithCreate
                 placeholder="Select payee"
                 value={formData.payeeId}
                 onChange={(value) => setFormData(prev => ({ ...prev, payeeId: value }))}
-                items={payeeItems}
+                options={payees.map(p => ({ value: p.id, label: p.name }))}
+                onCreateNew={async (name) => {
+                  const response = await fetch('/api/payees', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      name,
+                      icon: name.split(' ')[0] || '💼',
+                      // Don't include accountId for regular payees
+                    })
+                  })
+                  const data = await response.json()
+                  return data.id
+                }}
             /></TableCell>
-            <TableCell><SearchableSelect
+            <TableCell><ComboboxWithCreate
                 placeholder="Select category"
                 value={formData.categoryId}
                 onChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
-                items={categoryItems}
+                options={categories.map(c => ({ value: c.id, label: c.name }))}
+                onCreateNew={async (name) => {
+                  const response = await fetch('/api/categories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, icon: '📁' }) // Default icon
+                  })
+                  const data = await response.json()
+                  return data.id
+                }}
             /></TableCell>
             <TableCell><Input
                 placeholder="Memo"
                 value={formData.memo}
                 onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}
+                onKeyDown={handleKeyDown}
             /></TableCell>
             <TableCell><Input
                 type="number"
@@ -176,6 +196,7 @@ export function TransactionsTable({
                 placeholder="0.00"
                 value={formData.amount}
                 onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                onKeyDown={handleKeyDown}
                 className="text-right"
             /></TableCell>
             <TableCell><Button
