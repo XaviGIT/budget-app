@@ -13,6 +13,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { formatCurrency } from "@/lib/utils"
+import { TableHeaderCell } from "@/components/transactions/transactions-table-header-cell"
 
 type Transaction = {
   id: string
@@ -129,81 +130,63 @@ export function TransactionsTable({
     <div className="rounded-md border">
       <Table>
         <TableHeader>
-          <TableRow>{/* Remove whitespace between cells */}
-            <TableHead className="w-32">Date</TableHead>
-            <TableHead className="w-[20%]">Account</TableHead>
-            <TableHead>Payee</TableHead>
-            <TableHead className="w-[20%]">Category</TableHead>
-            <TableHead className="w-40">Memo</TableHead>
-            <TableHead className="w-32 text-right">Amount</TableHead>
-            <TableHead className="w-20" />
+          <TableRow>
+            <TableHeaderCell column="date" title="Date" defaultSort={true} />
+            <TableHeaderCell column="account" title="Account" />
+            <TableHeaderCell column="payee" title="Payee" />
+            <TableHeaderCell column="category" title="Category" />
+            <TableHeaderCell column="memo" title="Memo" />
+            <TableHeaderCell column="amount" title="Amount" />
+            <TableHead className="w-[50px]" />
           </TableRow>
         </TableHeader>
-        <TableBody>{/* Remove whitespace between rows */}
-          <TableRow className="bg-muted/50">{/* Form row cells with no whitespace */}
-            <TableCell>
-              <Input
+        <TableBody>{/* Form row */}
+          <TableRow className="bg-muted/50">{/* Remove whitespace between form cells */}
+            <TableCell><Input
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-              />
-            </TableCell>
-            <TableCell>
-              <SearchableSelect
+            /></TableCell>
+            <TableCell><SearchableSelect
                 placeholder="Select account"
                 value={formData.accountId}
                 onChange={(value) => setFormData(prev => ({ ...prev, accountId: value }))}
                 groups={accountGroups}
-              />
-            </TableCell>
-
-            <TableCell>
-              <SearchableSelect
+            /></TableCell>
+            <TableCell><SearchableSelect
                 placeholder="Select payee"
                 value={formData.payeeId}
                 onChange={(value) => setFormData(prev => ({ ...prev, payeeId: value }))}
                 items={payeeItems}
-              />
-            </TableCell>
-
-            <TableCell>
-              <SearchableSelect
+            /></TableCell>
+            <TableCell><SearchableSelect
                 placeholder="Select category"
                 value={formData.categoryId}
                 onChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
                 items={categoryItems}
-              />
-            </TableCell>
-            <TableCell>
-              <Input
+            /></TableCell>
+            <TableCell><Input
                 placeholder="Memo"
                 value={formData.memo}
                 onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}
-              />
-            </TableCell>
-            <TableCell>
-              <Input
+            /></TableCell>
+            <TableCell><Input
                 type="number"
                 step="0.01"
                 placeholder="0.00"
                 value={formData.amount}
                 onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
                 className="text-right"
-              />
-            </TableCell>
-            <TableCell>
-              <Button
+            /></TableCell>
+            <TableCell><Button
                 onClick={handleSubmit}
                 disabled={!formData.accountId || !formData.payeeId || !formData.categoryId || !formData.amount}>
                 Add
-              </Button>
-            </TableCell>
+            </Button></TableCell>
           </TableRow>
           {transactions.map((transaction) => (
-            <TableRow key={transaction.id}>
-              <TableCell>
-                {transaction.formattedDate} {/* Use the formatted date */}
-              </TableCell>
+            <TableRow key={transaction.id}>{/* Remove whitespace between transaction cells */}
+              <TableCell>{transaction.formattedDate}</TableCell>
               <TableCell>{transaction.account.name}</TableCell>
               <TableCell>{transaction.payee.name}</TableCell>
               <TableCell>{transaction.category.name}</TableCell>
