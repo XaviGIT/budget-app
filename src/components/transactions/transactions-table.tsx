@@ -15,6 +15,25 @@ import { Input } from "@/components/ui/input"
 import { formatCurrency } from "@/lib/utils"
 import { TableHeaderCell } from "@/components/transactions/transactions-table-header-cell"
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
+import { MoreHorizontal, Pencil, Trash } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { format } from "date-fns"
+import { TransactionRowItem } from "./transaction-table-row"
 
 type Transaction = {
   id: string
@@ -63,14 +82,22 @@ export function TransactionsTable({
   accounts,
   categories,
   payees,
-  onAddTransaction
+  onAddTransaction,
+  onDeleteTransaction,
+  onEditTransaction
 }: {
   transactions: Transaction[]
   accounts: Account[]
   categories: Category[]
   payees: Payee[]
   onAddTransaction: (data: FormData) => Promise<void>
+  onDeleteTransaction: (id: string) => Promise<void>
+  onEditTransaction: (id: string, data: any) => Promise<void>
 }) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
   const [formData, setFormData] = useState<FormData>({
     date: new Date().toISOString().split('T')[0],
     accountId: '',
@@ -80,17 +107,38 @@ export function TransactionsTable({
     memo: ''
   })
 
-  const handleSubmit = async () => {
-    await onAddTransaction(formData)
+  const handleEdit = (transaction: Transaction) => {
+    setEditingTransaction(transaction)
     setFormData({
-      date: new Date().toISOString().split('T')[0],
-      accountId: '',
-      payeeId: '',
-      categoryId: '',
-      amount: '',
-      memo: ''
+      date: format(new Date(transaction.date), 'yyyy-MM-dd'),
+      accountId: transaction.accountId,
+      payeeId: transaction.payeeId,
+      categoryId: transaction.categoryId,
+      amount: transaction.outflow
+        ? (-transaction.outflow).toString()
+        : transaction.inflow?.toString() || '',
+      memo: transaction.memo || ''
     })
   }
+
+  const handleSubmit = async () => {
+  if (editingTransaction) {
+    await onEditTransaction(editingTransaction.id, formData)
+  } else {
+    await onAddTransaction(formData)
+  }
+
+  // Reset form
+  setFormData({
+    date: new Date().toISOString().split('T')[0],
+    accountId: '',
+    payeeId: '',
+    categoryId: '',
+    amount: '',
+    memo: ''
+  })
+  setEditingTransaction(null)
+}
 
   const accountGroups = useMemo(() => [
     {
@@ -206,22 +254,55 @@ export function TransactionsTable({
             </Button></TableCell>
           </TableRow>
           {transactions.map((transaction) => (
-            <TableRow key={transaction.id}>{/* Remove whitespace between transaction cells */}
-              <TableCell>{transaction.formattedDate}</TableCell>
-              <TableCell>{transaction.account.name}</TableCell>
-              <TableCell>{transaction.payee.name}</TableCell>
-              <TableCell>{transaction.category.name}</TableCell>
-              <TableCell>{transaction.memo}</TableCell>
-              <TableCell className={`text-right ${transaction.outflow ? 'text-red-600' : 'text-green-600'}`}>
-                {transaction.outflow
-                  ? `-${formatCurrency(transaction.outflow)}`
-                  : formatCurrency(transaction.inflow || 0)}
-              </TableCell>
-              <TableCell />
-            </TableRow>
+            <TransactionRowItem
+              key={transaction.id}
+              transaction={transaction}
+              accounts={accounts}
+              categories={categories}
+              payees={payees}
+              isEditing={editingId === transaction.id}
+              onEdit={() => setEditingId(transaction.id)}
+              onSave={async (data) => {
+                await onEditTransaction(transaction.id, data)
+                setEditingId(null)
+              }}
+              onCancel={() => setEditingId(null)}
+              onDelete={(id) => {
+                setTransactionToDelete(id)
+                setDeleteDialogOpen(true)
+              }}
+            />
           ))}
         </TableBody>
       </Table>
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              transaction.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (transactionToDelete) {
+                  await onDeleteTransaction(transactionToDelete)
+                  setTransactionToDelete(null)
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
