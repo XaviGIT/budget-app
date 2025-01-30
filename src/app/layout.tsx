@@ -1,6 +1,7 @@
 import "@/app/globals.css"
 import { Inter } from "next/font/google"
 import { MainNav } from "@/components/shared/main-nav"
+import { Toaster } from "sonner"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -19,6 +20,7 @@ export default function RootLayout({
         </div>
         <main className="container mx-auto py-6">
           {children}
+          <Toaster />
         </main>
       </body>
     </html>

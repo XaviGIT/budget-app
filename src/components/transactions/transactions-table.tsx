@@ -12,16 +12,8 @@ import {
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { formatCurrency } from "@/lib/utils"
 import { TableHeaderCell } from "@/components/transactions/transactions-table-header-cell"
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
-import { MoreHorizontal, Pencil, Trash } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
 import { TransactionRowItem } from "./transaction-table-row"
+import { AnimatePresence } from "framer-motion"
 
 type Transaction = {
   id: string
@@ -253,26 +246,28 @@ export function TransactionsTable({
                 Add
             </Button></TableCell>
           </TableRow>
-          {transactions.map((transaction) => (
-            <TransactionRowItem
-              key={transaction.id}
-              transaction={transaction}
-              accounts={accounts}
-              categories={categories}
-              payees={payees}
-              isEditing={editingId === transaction.id}
-              onEdit={() => setEditingId(transaction.id)}
-              onSave={async (data) => {
-                await onEditTransaction(transaction.id, data)
-                setEditingId(null)
-              }}
-              onCancel={() => setEditingId(null)}
-              onDelete={(id) => {
-                setTransactionToDelete(id)
-                setDeleteDialogOpen(true)
-              }}
-            />
-          ))}
+          <AnimatePresence mode="popLayout">
+            {transactions.map((transaction) => (
+              <TransactionRowItem
+                key={transaction.id}
+                transaction={transaction}
+                accounts={accounts}
+                categories={categories}
+                payees={payees}
+                isEditing={editingId === transaction.id}
+                onEdit={() => setEditingId(transaction.id)}
+                onSave={async (data) => {
+                  await onEditTransaction(transaction.id, data)
+                  setEditingId(null)
+                }}
+                onCancel={() => setEditingId(null)}
+                onDelete={(id) => {
+                  setTransactionToDelete(id)
+                  setDeleteDialogOpen(true)
+                }}
+              />
+            ))}
+          </AnimatePresence>
         </TableBody>
       </Table>
       <AlertDialog

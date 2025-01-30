@@ -1,6 +1,5 @@
 "use client"
 
-import React from "react"
 import { format } from "date-fns"
 import { MoreHorizontal, Pencil, Trash } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,6 +13,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { formatCurrency } from "@/lib/utils"
+import { useEffect, useState } from "react"
+import { Loader2 } from "lucide-react"
+import { toast } from "sonner" // We'll need to install this
+import { motion } from "framer-motion" // And this
 
 interface TransactionRowProps {
   transaction: {
@@ -51,7 +54,7 @@ export function TransactionRowItem({
   onCancel,
   onDelete,
 }: TransactionRowProps) {
-  const [editData, setEditData] = React.useState({
+  const [editData, setEditData] = useState({
     date: format(new Date(transaction.date), 'yyyy-MM-dd'),
     accountId: transaction.accountId,
     payeeId: transaction.payeeId,
@@ -61,10 +64,54 @@ export function TransactionRowItem({
       : transaction.inflow?.toString() || '',
     memo: transaction.memo || ''
   })
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    if (!isEditing) return
+
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel()
+      } else if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        if (!isSaving) {
+          try {
+            setIsSaving(true)
+            await onSave(editData)
+            toast.success('Transaction updated')
+          } catch (error) {
+            toast.error('Failed to update transaction')
+          } finally {
+            setIsSaving(false)
+          }
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isEditing, editData, isSaving, onSave, onCancel])
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true)
+      await onSave(editData)
+      toast.success('Transaction updated')
+    } catch (error) {
+      toast.error('Failed to update transaction')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   if (isEditing) {
     return (
-      <TableRow className="relative bg-muted/50">
+      <motion.tr
+        initial={{ backgroundColor: "var(--background)" }}
+        animate={{ backgroundColor: "var(--muted)" }}
+        exit={{ backgroundColor: "var(--background)" }}
+        className="relative"
+      >
         <TableCell>
           <Input
             type="date"
@@ -138,25 +185,36 @@ export function TransactionRowItem({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onSave(editData)}
+              onClick={handleSave}
+              disabled={isSaving}
             >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
               Save
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={onCancel}
+              disabled={isSaving}
             >
               Cancel
             </Button>
           </div>
         </TableCell>
-      </TableRow>
+      </motion.tr>
     )
   }
 
   return (
-    <TableRow>
+    <motion.tr
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.2 }}
+    >
       <TableCell>{transaction.formattedDate}</TableCell>
       <TableCell>{transaction.account.name}</TableCell>
       <TableCell>{transaction.payee.name}</TableCell>
@@ -193,6 +251,6 @@ export function TransactionRowItem({
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
-    </TableRow>
+    </motion.tr>
   )
 }
