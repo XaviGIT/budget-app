@@ -4,7 +4,7 @@ import { format } from "date-fns"
 import { MoreHorizontal, Pencil, Trash } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { TableCell, TableRow } from "@/components/ui/table"
+import { TableCell } from "@/components/ui/table"
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import {
   DropdownMenu,

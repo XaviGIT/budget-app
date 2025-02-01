@@ -12,10 +12,11 @@ model Account {
   name         String        @unique
   balance      Float
   type         AccountType
-  transactions Transaction[]
-  payee        Payee? // One-to-one relation with Payee
+  transactions Transaction[] // Transactions from this account
+  transfersTo  Transaction[] @relation("TransferToAccount") // Transfers to this account
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  Payee        Payee?
 
   @@map("accounts")
 }
@@ -45,20 +46,29 @@ model Category {
   @@map("categories")
 }
 
+enum TransactionType {
+  EXPENSE // Regular expense (outflow)
+  TRANSFER // Transfer between accounts
+  PAYMENT // Credit card/loan payment
+}
+
 model Transaction {
-  id         String   @id @default(cuid())
-  date       DateTime
-  payee      Payee    @relation(fields: [payeeId], references: [id])
-  payeeId    String
-  category   Category @relation(fields: [categoryId], references: [id])
-  categoryId String
-  account    Account  @relation(fields: [accountId], references: [id])
-  accountId  String
-  memo       String?
-  outflow    Float?
-  inflow     Float?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String          @id @default(cuid())
+  date        DateTime
+  payee       Payee           @relation(fields: [payeeId], references: [id])
+  payeeId     String
+  category    Category        @relation(fields: [categoryId], references: [id])
+  categoryId  String
+  account     Account         @relation(fields: [accountId], references: [id])
+  accountId   String
+  type        TransactionType
+  amount      Float // Positive number: expense amount or transfer amount
+  memo        String?
+  // For transfers, we need the destination account
+  toAccount   Account?        @relation("TransferToAccount", fields: [toAccountId], references: [id])
+  toAccountId String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@map("transactions")
 }
