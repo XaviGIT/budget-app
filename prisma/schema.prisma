@@ -80,6 +80,7 @@ model Budget {
 }
 
 enum AccountType {
-  CREDIT
   DEBIT
+  SAVINGS
+  CREDIT
 }
