@@ -3,11 +3,11 @@
 import { useState, useTransition } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Trash2Icon } from "lucide-react"
 import { AccountForm } from "./account-form"
 import {
   AlertDialog,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -71,18 +71,19 @@ export function AccountCard({ account, accounts }: AccountCardProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-lg font-semibold">{account.name}</CardTitle>
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             <AccountForm
               initialData={account}
               onSubmit={handleUpdate}
             />
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={() => setDeleteDialogOpen(true)}
               disabled={isPending}
+              className="text-muted-foreground hover:text-red-600 transition-colors"
             >
-              Delete
+              <Trash2Icon className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
