@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
@@ -25,19 +27,18 @@ interface AccountFormProps {
     id: string
     name: string
     balance: number
-    type: 'CREDIT' | 'DEBIT'
+    type: 'CREDIT' | 'DEBIT' | 'SAVINGS'
   }
   onSubmit: (data: {
     name: string
     balance: number
-    type: 'CREDIT' | 'DEBIT'
+    type: 'CREDIT' | 'DEBIT' | 'SAVINGS'
   }) => Promise<void>
 }
 
 export function AccountForm({ initialData, onSubmit }: AccountFormProps) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     balance: initialData?.balance || 0,
@@ -96,7 +97,7 @@ export function AccountForm({ initialData, onSubmit }: AccountFormProps) {
           <div className="grid gap-2">
             <Select
               value={formData.type}
-              onValueChange={(value: 'CREDIT' | 'DEBIT') =>
+              onValueChange={(value: 'CREDIT' | 'DEBIT' | 'SAVINGS') =>
                 setFormData(prev => ({ ...prev, type: value }))
               }
             >
@@ -104,13 +105,20 @@ export function AccountForm({ initialData, onSubmit }: AccountFormProps) {
                 <SelectValue placeholder="Select account type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="DEBIT">Debit</SelectItem>
-                <SelectItem value="CREDIT">Credit</SelectItem>
+                <SelectGroup>
+                  <SelectLabel>Assets</SelectLabel>
+                  <SelectItem value="DEBIT">Debit Account</SelectItem>
+                  <SelectItem value="SAVINGS">Savings/Investment</SelectItem>
+                </SelectGroup>
+                <SelectGroup>
+                  <SelectLabel>Liabilities</SelectLabel>
+                  <SelectItem value="CREDIT">Credit Account</SelectItem>
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Saving..." : "Save"}
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? "Saving..." : "Save"}
           </Button>
         </form>
       </DialogContent>

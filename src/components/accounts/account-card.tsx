@@ -89,7 +89,7 @@ export function AccountCard({ account, accounts }: AccountCardProps) {
         </CardHeader>
         <CardContent>
           <p className={`text-2xl font-bold ${
-            account.balance < 0 ? 'text-red-600' : 'text-green-600'
+            account.type === 'CREDIT' || account.balance < 0 ? 'text-red-600' : 'text-green-600'
           }`}>
             {formatCurrency(account.balance)}
           </p>
