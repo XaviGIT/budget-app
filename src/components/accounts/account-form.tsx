@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { PencilIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -60,8 +61,13 @@ export function AccountForm({ initialData, onSubmit }: AccountFormProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant={initialData ? "ghost" : "default"}>
-          {initialData ? "Edit" : "Add Account"}
+        <Button
+          variant={initialData ? "ghost" : "default"}
+          size={initialData ? "icon" : "default"}
+          disabled={isPending}
+          className={initialData ? "text-muted-foreground hover:text-primary transition-colors" : ''}
+        >
+          {initialData ? <PencilIcon className="h-4 w-4" /> : "Add Account" }
         </Button>
       </DialogTrigger>
       <DialogContent>
