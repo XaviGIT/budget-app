@@ -24,51 +24,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { format } from "date-fns"
 import { TransactionRowItem } from "./transaction-table-row"
 import { AnimatePresence } from "framer-motion"
-
-type Transaction = {
-  id: string
-  date: Date
-  formattedDate: string
-  account: {
-    name: string
-  }
-  payee: {
-    name: string
-  }
-  category: {
-    name: string
-  }
-  memo: string | null
-  outflow: number | null
-  inflow: number | null
-}
-
-type Account = {
-  id: string
-  name: string
-}
-
-type Category = {
-  id: string
-  name: string
-}
-
-type Payee = {
-  id: string
-  name: string
-}
-
-type FormData = {
-  date: string
-  accountId: string
-  payeeId: string
-  categoryId: string
-  amount: string
-  memo: string
-}
+import { Account, Category, Payee, Transaction } from "@/types"
 
 export function TransactionsTable({
   transactions,
@@ -100,38 +58,53 @@ export function TransactionsTable({
     memo: ''
   })
 
-  const handleEdit = (transaction: Transaction) => {
-    setEditingTransaction(transaction)
-    setFormData({
-      date: format(new Date(transaction.date), 'yyyy-MM-dd'),
-      accountId: transaction.accountId,
-      payeeId: transaction.payeeId,
-      categoryId: transaction.categoryId,
-      amount: transaction.outflow
-        ? (-transaction.outflow).toString()
-        : transaction.inflow?.toString() || '',
-      memo: transaction.memo || ''
-    })
-  }
+  const availablePayees = useMemo(() => {
+    const selectedAccount = accounts.find(a => a.id === formData.accountId);
+    if (!selectedAccount) return payees;
+
+    // If selected account is debit, show all payees
+    if (selectedAccount.type === 'DEBIT') {
+      return payees;
+    }
+
+    // If selected account is credit, only show non-account payees
+    return payees.filter(p => !p.account);
+  }, [formData.accountId, accounts, payees]);
 
   const handleSubmit = async () => {
-  if (editingTransaction) {
-    await onEditTransaction(editingTransaction.id, formData)
-  } else {
-    await onAddTransaction(formData)
-  }
+    const sourceAccount = accounts.find(a => a.id === formData.accountId);
+    const payee = payees.find(p => p.id === formData.payeeId);
 
-  // Reset form
-  setFormData({
-    date: new Date().toISOString().split('T')[0],
-    accountId: '',
-    payeeId: '',
-    categoryId: '',
-    amount: '',
-    memo: ''
-  })
-  setEditingTransaction(null)
-}
+    if (!sourceAccount) return;
+
+    const amount = parseFloat(formData.amount);
+
+    // If payee has an account, it's a transfer or payment
+    if (payee?.account) {
+      await onAddTransaction({
+        ...formData,
+        amount: (-amount).toString(), // Always negative for source account
+        toAccountId: payee.account.id
+      });
+    } else {
+      // Regular expense
+      await onAddTransaction({
+        ...formData,
+        amount: (-amount).toString() // negative for outflow
+      });
+    }
+
+    // Reset form
+    setFormData({
+      date: new Date().toISOString().split('T')[0],
+      accountId: '',
+      payeeId: '',
+      categoryId: '',
+      amount: '',
+      memo: ''
+    });
+    setEditingTransaction(null)
+  }
 
   const accountGroups = useMemo(() => [
     {
@@ -192,23 +165,22 @@ export function TransactionsTable({
                 groups={accountGroups}
             /></TableCell>
             <TableCell><ComboboxWithCreate
-                placeholder="Select payee"
-                value={formData.payeeId}
-                onChange={(value) => setFormData(prev => ({ ...prev, payeeId: value }))}
-                options={payees.map(p => ({ value: p.id, label: p.name }))}
-                onCreateNew={async (name) => {
-                  const response = await fetch('/api/payees', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      name,
-                      icon: name.split(' ')[0] || '💼',
-                      // Don't include accountId for regular payees
-                    })
+              placeholder="Select payee"
+              value={formData.payeeId}
+              onChange={(value) => setFormData(prev => ({ ...prev, payeeId: value }))}
+              options={availablePayees.map(p => ({ value: p.id, label: p.name }))}
+              onCreateNew={async (name) => {
+                const response = await fetch('/api/payees', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    name,
+                    icon: name.split(' ')[0] || '💼',
                   })
-                  const data = await response.json()
-                  return data.id
-                }}
+                })
+                const data = await response.json()
+                return data.id
+              }}
             /></TableCell>
             <TableCell><ComboboxWithCreate
                 placeholder="Select category"
@@ -216,13 +188,17 @@ export function TransactionsTable({
                 onChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
                 options={categories.map(c => ({ value: c.id, label: c.name }))}
                 onCreateNew={async (name) => {
-                  const response = await fetch('/api/categories', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, icon: '📁' }) // Default icon
-                  })
-                  const data = await response.json()
-                  return data.id
+                    const response = await fetch('/api/categories', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, icon: '📁' })
+                    })
+                    const data = await response.json()
+
+                    // Force a page refresh to update all data
+                    window.location.reload()
+
+                    return data.id
                 }}
             /></TableCell>
             <TableCell><Input
@@ -285,15 +261,25 @@ export function TransactionsTable({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={async () => {
-                if (transactionToDelete) {
-                  await onDeleteTransaction(transactionToDelete)
-                  setTransactionToDelete(null)
-                }
-              }}
-              className="bg-red-600 hover:bg-red-700"
+                onClick={async () => {
+                    if (transactionToDelete) {
+                        await onDeleteTransaction(transactionToDelete)
+                        // Reset all states
+                        setTransactionToDelete(null)
+                        setDeleteDialogOpen(false)
+                        setFormData({
+                            date: new Date().toISOString().split('T')[0],
+                            accountId: '',
+                            payeeId: '',
+                            categoryId: '',
+                            amount: '',
+                            memo: ''
+                        })
+                    }
+                }}
+                className="bg-red-600 hover:bg-red-700"
             >
-              Delete
+                Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

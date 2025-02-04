@@ -138,7 +138,7 @@ async function addTransaction(data: any) {
     prisma.account.findUnique({ where: { id: data.accountId } }),
     prisma.payee.findUnique({
       where: { id: data.payeeId },
-      include: { account: true } // If the payee is also an account
+      include: { account: true }
     })
   ])
 
@@ -154,8 +154,8 @@ async function addTransaction(data: any) {
         payeeId: data.payeeId,
         categoryId: data.categoryId,
         memo: data.memo,
-        outflow: amount < 0 ? Math.abs(amount) : null,
-        inflow: amount > 0 ? amount : null,
+        amount: Math.abs(amount), // Always store positive amount
+        toAccountId: payee?.account?.id || null
       }
     })
 

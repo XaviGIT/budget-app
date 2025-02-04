@@ -26,8 +26,8 @@ interface TransactionRowProps {
     payee: { name: string }
     category: { name: string }
     memo: string | null
-    outflow: number | null
-    inflow: number | null
+    amount: number
+    toAccountId: string | null    // Add this
     accountId: string
     payeeId: string
     categoryId: string
@@ -36,7 +36,7 @@ interface TransactionRowProps {
   isEditing: boolean
   accounts: { id: string; name: string }[]
   categories: { id: string; name: string }[]
-  payees: { id: string; name: string }[]
+  payees: { id: string;   name: string }[]
   onEdit: () => void
   onSave: (data: any) => Promise<void>
   onCancel: () => void
@@ -207,6 +207,17 @@ export function TransactionRowItem({
     )
   }
 
+  function formatTransactionAmount(transaction: TransactionRowProps['transaction']) {
+    const amount = transaction.amount
+
+    if (transaction.toAccountId) {
+      // return `${formatCurrency(amount)} → ${transaction.payee.name}`
+      return `${formatCurrency(amount)}`
+    }
+
+    return `-${formatCurrency(amount)}`
+  }
+
   return (
     <motion.tr
       layout
@@ -220,10 +231,12 @@ export function TransactionRowItem({
       <TableCell>{transaction.payee.name}</TableCell>
       <TableCell>{transaction.category.name}</TableCell>
       <TableCell>{transaction.memo}</TableCell>
-      <TableCell className={`text-right ${transaction.outflow ? 'text-red-600' : 'text-green-600'}`}>
-        {transaction.outflow
-          ? `-${formatCurrency(transaction.outflow)}`
-          : formatCurrency(transaction.inflow || 0)}
+      <TableCell className={`text-right ${
+        transaction.toAccountId
+          ? 'text-blue-600'  // Transfer
+          : 'text-red-600'   // Expense
+      }`}>
+        {formatTransactionAmount(transaction)}
       </TableCell>
       <TableCell>
         <DropdownMenu>

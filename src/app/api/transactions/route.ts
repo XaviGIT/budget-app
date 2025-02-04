@@ -6,19 +6,16 @@ export async function GET() {
     const transactions = await prisma.transaction.findMany({
       include: {
         account: {
-          select: {
-            name: true,
-          },
+          select: { name: true },
         },
         payee: {
-          select: {
-            name: true,
-          },
+          select: { name: true },
         },
         category: {
-          select: {
-            name: true,
-          },
+          select: { name: true },
+        },
+        toAccount: {
+          select: { name: true },
         },
       },
       orderBy: {
