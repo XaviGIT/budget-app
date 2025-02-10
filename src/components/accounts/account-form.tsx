@@ -1,127 +1,127 @@
-"use client"
-
-import { useState, useTransition } from "react"
-import { PencilIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { toast } from "sonner"
+} from "@/components/ui/select";
 
 interface AccountFormProps {
-  initialData?: {
-    id: string
-    name: string
-    balance: number
-    type: 'CREDIT' | 'DEBIT' | 'SAVINGS'
-  }
   onSubmit: (data: {
-    name: string
-    balance: number
-    type: 'CREDIT' | 'DEBIT' | 'SAVINGS'
-  }) => Promise<void>
+    name: string;
+    balance: number;
+    type: "CREDIT" | "DEBIT" | "SAVINGS";
+  }) => Promise<void>;
+  initialData?: {
+    name: string;
+    balance: number;
+    type: "CREDIT" | "DEBIT" | "SAVINGS";
+  };
+  submitLabel?: string;
 }
 
-export function AccountForm({ initialData, onSubmit }: AccountFormProps) {
-  const [open, setOpen] = useState(false)
-  const [isPending, startTransition] = useTransition()
+export const AccountForm: React.FC<AccountFormProps> = ({
+  onSubmit,
+  initialData,
+  submitLabel = "Create Account",
+}) => {
   const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    balance: initialData?.balance || 0,
-    type: initialData?.type || 'DEBIT'
-  })
+    name: initialData?.name || "",
+    balance: initialData?.balance?.toString() || "",
+    type: initialData?.type || "DEBIT",
+  });
+  const [error, setError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    startTransition(async () => {
-      try {
-        await onSubmit(formData)
-        setOpen(false)
-        setFormData({ name: '', balance: 0, type: 'DEBIT' })
-        toast.success(initialData ? "Account updated" : "Account created")
-      } catch (error) {
-        toast.error(initialData ? "Failed to update account" : "Failed to create account")
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+
+    // Validate name
+    if (!formData.name.trim()) {
+      setError("Account name is required");
+      return;
+    }
+
+    // Validate and parse balance
+    const balance = parseFloat(formData.balance);
+    if (isNaN(balance)) {
+      setError("Please enter a valid balance");
+      return;
+    }
+
+    try {
+      await onSubmit({
+        ...formData,
+        balance,
+        type: formData.type as "CREDIT" | "DEBIT" | "SAVINGS",
+      });
+
+      if (!initialData) {
+        // Only reset form if it's a create operation
+        setFormData({ name: "", balance: "", type: "DEBIT" });
       }
-    })
-  }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "An error occurred");
+    }
+  };
+
+  const handleBalanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow empty string or valid numbers only
+    if (value === "" || !isNaN(parseFloat(value))) {
+      setFormData((prev) => ({ ...prev, balance: value }));
+    }
+  };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant={initialData ? "ghost" : "default"}
-          size={initialData ? "icon" : "default"}
-          disabled={isPending}
-          className={initialData ? "text-muted-foreground hover:text-primary transition-colors" : ''}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Input
+          placeholder="Account Name"
+          value={formData.name}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, name: e.target.value }))
+          }
+        />
+      </div>
+      <div className="space-y-2">
+        <Input
+          type="number"
+          step="0.01"
+          placeholder="Balance"
+          value={formData.balance}
+          onChange={handleBalanceChange}
+        />
+      </div>
+      <div className="space-y-2">
+        <Select
+          value={formData.type}
+          onValueChange={(value) =>
+            setFormData((prev) => ({
+              ...prev,
+              type: value as "CREDIT" | "DEBIT" | "SAVINGS",
+            }))
+          }
         >
-          {initialData ? <PencilIcon className="h-4 w-4" /> : "Add Account" }
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{initialData ? "Edit Account" : "Add Account"}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-2">
-            <Input
-              placeholder="Account name (with emoji)"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              required
-            />
-          </div>
-          <div className="grid gap-2">
-            <Input
-              type="number"
-              step="0.01"
-              placeholder="Initial balance"
-              value={formData.balance}
-              onChange={(e) => setFormData(prev => ({ ...prev, balance: parseFloat(e.target.value) }))}
-              required
-            />
-          </div>
-          <div className="grid gap-2">
-            <Select
-              value={formData.type}
-              onValueChange={(value: 'CREDIT' | 'DEBIT' | 'SAVINGS') =>
-                setFormData(prev => ({ ...prev, type: value }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select account type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Assets</SelectLabel>
-                  <SelectItem value="DEBIT">Debit Account</SelectItem>
-                  <SelectItem value="SAVINGS">Savings/Investment</SelectItem>
-                </SelectGroup>
-                <SelectGroup>
-                  <SelectLabel>Liabilities</SelectLabel>
-                  <SelectItem value="CREDIT">Credit Account</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button type="submit" className="w-full" disabled={isPending}>
-            {isPending ? "Saving..." : "Save"}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="DEBIT">Debit Account</SelectItem>
+            <SelectItem value="CREDIT">Credit Card</SelectItem>
+            <SelectItem value="SAVINGS">Savings</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {error && <div className="text-red-500 text-sm">{error}</div>}
+      <div className="flex justify-end">
+        <Button type="submit">{submitLabel}</Button>
+      </div>
+    </form>
+  );
+};
+
+export default AccountForm;
