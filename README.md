@@ -54,3 +54,45 @@ To see the local databases:
 ```
 npx prisma studio
 ```
+
+## Structure
+
+### Accounts
+
+```
+/app
+  /accounts
+    /page.tsx           - Main accounts page with Suspense
+    /route.ts           - API route for accounts CRUD operations
+/components
+  /accounts
+    /accounts-list.tsx  - Main container component for accounts
+    /account-card.tsx   - Individual account card component
+    /account-form.tsx   - Form for creating/editing accounts
+/hooks
+  /useAccounts.ts      - React Query hooks for accounts data and mutations
+/lib
+  /actions
+    /accounts.ts       - Server actions for accounts
+```
+
+### Transactions
+
+```
+/app
+  /transactions
+    /page.tsx             - Main transactions page with Suspense
+    /route.ts             - API route for transactions CRUD operations
+/components
+  /transactions
+    /transactions-list.tsx - Main container component for transactions
+    /transactions-table.tsx- Table component for displaying transactions
+    /transaction-form.tsx  - Form for creating/editing transactions
+/hooks
+  /useTransactions.ts     - React Query hooks for transactions data and mutations
+  /useCategories.ts     - Category management
+  /usePayees.ts         - Payee management
+/lib
+  /actions
+    /transactions.ts      - Server actions for transactions
+```
