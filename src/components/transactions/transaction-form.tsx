@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -24,12 +24,14 @@ interface TransactionFormProps {
     amount: string;
     memo: string;
   };
+  defaultAccountName?: string;
   submitLabel?: string;
 }
 
 export const TransactionForm: React.FC<TransactionFormProps> = ({
   onSubmit,
   initialData,
+  defaultAccountName,
   submitLabel = "Add Transaction",
 }) => {
   const { data: accounts = [] } = useAccounts();
@@ -47,6 +49,17 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     memo: initialData?.memo || "",
   });
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (defaultAccountName && accounts.length > 0 && !formData.accountId) {
+      const defaultAccount = accounts.find(
+        (account) => account.name === defaultAccountName
+      );
+      if (defaultAccount) {
+        setFormData((prev) => ({ ...prev, accountId: defaultAccount.id }));
+      }
+    }
+  }, [defaultAccountName, accounts, formData.accountId]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

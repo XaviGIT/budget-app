@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2Icon, PencilIcon } from "lucide-react";
+import { Trash2Icon, PencilIcon, ArrowUpRight } from "lucide-react";
 import { AccountForm } from "./account-form";
 import {
   AlertDialog,
@@ -27,8 +27,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
+import { useRouter } from "next/navigation";
 
 interface AccountCardProps {
   account: {
@@ -46,6 +46,7 @@ interface AccountCardProps {
 }
 
 export function AccountCard({ account, accounts }: AccountCardProps) {
+  const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [transferToAccountId, setTransferToAccountId] = useState<string>("");
@@ -82,64 +83,87 @@ export function AccountCard({ account, accounts }: AccountCardProps) {
     }
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Prevent navigation if clicking on buttons
+    if (
+      e.target instanceof HTMLElement &&
+      (e.target.closest("button") || e.target.closest('[role="button"]'))
+    ) {
+      return;
+    }
+
+    router.push(`/transactions?filter_account=${account.name}`);
+  };
+
   const otherAccounts = accounts?.filter((a) => a.id !== account.id);
 
   return (
     <>
-      <Card>
+      <Card
+        className="cursor-pointer hover:shadow-md transition-shadow"
+        onClick={handleCardClick}
+      >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-lg font-semibold">
             {account.name}
           </CardTitle>
           <div className="flex gap-1">
-            <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-blue-600 transition-colors"
-                >
-                  <PencilIcon className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Edit Account</DialogTitle>
-                </DialogHeader>
-                <AccountForm
-                  initialData={{
-                    name: account.name,
-                    balance: account.balance,
-                    type: account.type,
-                  }}
-                  onSubmit={handleUpdate}
-                  submitLabel="Update Account"
-                />
-              </DialogContent>
-            </Dialog>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setDeleteDialogOpen(true)}
-              disabled={deleteAccount.isPending}
+              className="text-muted-foreground hover:text-blue-600 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setUpdateDialogOpen(true);
+              }}
+            >
+              <PencilIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               className="text-muted-foreground hover:text-red-600 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteDialogOpen(true);
+              }}
             >
               <Trash2Icon className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <p
-            className={`text-2xl font-bold ${
-              account.type === "CREDIT" || account.balance < 0
-                ? "text-red-600"
-                : "text-green-600"
-            }`}
-          >
-            {formatCurrency(account.balance)}
-          </p>
+          <div className="flex justify-between items-center">
+            <p
+              className={`text-2xl font-bold ${
+                account.type === "CREDIT" || account.balance < 0
+                  ? "text-red-600"
+                  : "text-green-600"
+              }`}
+            >
+              {formatCurrency(account.balance)}
+            </p>
+            <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+          </div>
         </CardContent>
       </Card>
+
+      <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Account</DialogTitle>
+          </DialogHeader>
+          <AccountForm
+            initialData={{
+              name: account.name,
+              balance: account.balance,
+              type: account.type,
+            }}
+            onSubmit={handleUpdate}
+            submitLabel="Update Account"
+          />
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
-import { toast } from "sonner";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Plus, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,11 +12,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { TransactionsTable } from "./transactions-table";
-import { useTransactions, useAddTransaction } from "@/hooks/useTransactions";
 import { TransactionForm } from "./transaction-form";
+import { useTransactions, useAddTransaction } from "@/hooks/useTransactions";
+import { toast } from "sonner";
 
 export function TransactionsList() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const accountFilter = searchParams.get("filter_account");
+
   const { data: transactions, isLoading, error } = useTransactions();
   const addTransaction = useAddTransaction();
 
@@ -47,10 +52,32 @@ export function TransactionsList() {
     }
   };
 
+  const clearAccountFilter = () => {
+    router.push("/transactions");
+  };
+
+  const filteredTransactions = accountFilter
+    ? transactions?.filter((t) => t.account.name === accountFilter)
+    : transactions;
+
   return (
     <div className="space-y-8 p-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Transactions</h1>
+        <div className="flex items-center gap-4">
+          {accountFilter && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={clearAccountFilter}
+              className="mr-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          )}
+          <h1 className="text-3xl font-bold">
+            {accountFilter ? `Transactions - ${accountFilter}` : "Transactions"}
+          </h1>
+        </div>
         <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -62,20 +89,27 @@ export function TransactionsList() {
             <DialogHeader>
               <DialogTitle>Add New Transaction</DialogTitle>
             </DialogHeader>
-            <TransactionForm onSubmit={handleAddTransaction} />
+            <TransactionForm
+              onSubmit={handleAddTransaction}
+              defaultAccountName={accountFilter || undefined}
+            />
           </DialogContent>
         </Dialog>
       </div>
 
-      {!transactions?.length ? (
+      {!filteredTransactions?.length ? (
         <div className="text-center py-12">
           <div className="text-muted-foreground space-y-3">
-            <h3 className="text-lg font-medium">No transactions yet</h3>
-            <p>Get started by adding your first transaction.</p>
+            <h3 className="text-lg font-medium">No transactions found</h3>
+            <p>
+              {accountFilter
+                ? `No transactions for ${accountFilter}`
+                : "Get started by adding your first transaction."}
+            </p>
           </div>
         </div>
       ) : (
-        <TransactionsTable transactions={transactions} />
+        <TransactionsTable transactions={filteredTransactions} />
       )}
     </div>
   );
