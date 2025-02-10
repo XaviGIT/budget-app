@@ -6,10 +6,8 @@ export async function GET() {
     const categories = await prisma.category.findMany({
       orderBy: { name: "asc" },
     });
-
     return NextResponse.json(categories);
-  } catch (error) {
-    console.error("Error fetching categories:", error);
+  } catch {
     return NextResponse.json(
       { error: "Failed to fetch categories" },
       { status: 500 }
@@ -21,10 +19,22 @@ export async function POST(request: Request) {
   try {
     const data = await request.json();
 
+    // Get or create default group
+    let defaultGroup = await prisma.categoryGroup.findFirst({
+      where: { name: "Uncategorized" },
+    });
+
+    if (!defaultGroup) {
+      defaultGroup = await prisma.categoryGroup.create({
+        data: { name: "Uncategorized" },
+      });
+    }
+
     const category = await prisma.category.create({
       data: {
         name: data.name,
         icon: data.icon,
+        groupId: defaultGroup.id,
       },
     });
 

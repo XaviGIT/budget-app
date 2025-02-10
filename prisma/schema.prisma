@@ -34,16 +34,39 @@ model Payee {
   @@map("payees")
 }
 
-model Category {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  icon         String
-  transactions Transaction[]
-  budgets      Budget[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+model CategoryGroup {
+  id         String     @id @default(cuid())
+  name       String
+  order      Int        @default(0)
+  categories Category[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
 
-  @@map("categories")
+model Category {
+  id           String             @id @default(cuid())
+  name         String
+  icon         String
+  order        Int                @default(0)
+  groupId      String
+  group        CategoryGroup      @relation(fields: [groupId], references: [id])
+  transactions Transaction[]
+  assignments  BudgetAssignment[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  Budget       Budget[]
+}
+
+model BudgetAssignment {
+  id         String   @id @default(cuid())
+  month      String
+  amount     Float
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([month, categoryId])
 }
 
 model Transaction {
