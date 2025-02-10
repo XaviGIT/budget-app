@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 export async function addAccount(data: {
   name: string;
   balance: number;
-  type: "CREDIT" | "DEBIT";
+  type: "CREDIT" | "DEBIT" | "SAVINGS";
 }) {
   try {
     const existing = await prisma.payee.findUnique({
