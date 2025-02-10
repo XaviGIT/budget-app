@@ -32,29 +32,31 @@ export async function PUT(
     });
 
     const transaction = await prisma.$transaction(async (tx) => {
-      // Revert original transaction effects
+      // Revert original transaction effects by adding back the original amount
       await tx.account.update({
         where: { id: originalTransaction.accountId },
-        data: { balance: { increment: originalTransaction.amount } },
+        data: { balance: { increment: Math.abs(originalTransaction.amount) } },
       });
 
       if (originalTransaction.toAccountId) {
         await tx.account.update({
           where: { id: originalTransaction.toAccountId },
-          data: { balance: { decrement: originalTransaction.amount } },
+          data: {
+            balance: { decrement: Math.abs(originalTransaction.amount) },
+          },
         });
       }
 
-      // Apply new transaction effects
+      // Apply new transaction effects by subtracting the new amount
       await tx.account.update({
         where: { id: data.accountId },
-        data: { balance: { decrement: amount } },
+        data: { balance: { decrement: Math.abs(amount) } },
       });
 
       if (newPayee?.account) {
         await tx.account.update({
           where: { id: newPayee.account.id },
-          data: { balance: { increment: amount } },
+          data: { balance: { increment: Math.abs(amount) } },
         });
       }
 
@@ -121,16 +123,17 @@ export async function DELETE(
     }
 
     await prisma.$transaction(async (tx) => {
-      // Revert transaction effects
+      // Revert transaction effects by adding back the amount to the source account
       await tx.account.update({
         where: { id: transaction.accountId },
-        data: { balance: { increment: transaction.amount } },
+        data: { balance: { increment: Math.abs(transaction.amount) } },
       });
 
       if (transaction.toAccountId) {
+        // For transfers, remove the amount from the target account
         await tx.account.update({
           where: { id: transaction.toAccountId },
-          data: { balance: { decrement: transaction.amount } },
+          data: { balance: { decrement: Math.abs(transaction.amount) } },
         });
       }
 
