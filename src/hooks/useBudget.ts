@@ -30,6 +30,31 @@ export function useBudget(month: string) {
   });
 }
 
+export function useReorder() {
+  return useMutation({
+    mutationFn: async ({
+      type,
+      items,
+      groupId,
+    }: {
+      type: "group" | "category";
+      items: string[];
+      groupId?: string;
+    }) => {
+      const response = await fetch("/api/budget/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, items, groupId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to reorder items");
+      }
+    },
+  });
+}
+
 export function useSaveAssignment() {
   const queryClient = useQueryClient();
 

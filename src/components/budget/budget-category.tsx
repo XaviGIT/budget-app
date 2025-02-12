@@ -5,6 +5,8 @@ import { GripVertical } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { useSaveAssignment } from "@/hooks/useBudget";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface BudgetCategoryProps {
   category: {
@@ -23,6 +25,21 @@ export function BudgetCategory({ category, month }: BudgetCategoryProps) {
   );
   const saveAssignment = useSaveAssignment();
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `category-${category.id}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   const handleBlur = async () => {
     setIsEditing(false);
     const amount = parseFloat(assignedAmount);
@@ -36,8 +53,10 @@ export function BudgetCategory({ category, month }: BudgetCategoryProps) {
   };
 
   return (
-    <div className="flex items-center gap-4">
-      <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+    <div ref={setNodeRef} style={style} className="flex items-center gap-4">
+      <div {...attributes} {...listeners}>
+        <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+      </div>
       <div className="flex-1">{category.name}</div>
       <div
         className="w-32 text-right cursor-pointer"

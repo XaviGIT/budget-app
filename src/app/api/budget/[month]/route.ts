@@ -3,70 +3,58 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { month: string } }
+  context: { params: { month: string } }
 ) {
+  const { month } = context.params;
+  if (!month) {
+    return NextResponse.json({ error: "Month is required" }, { status: 400 });
+  }
+
   try {
-    const month = params.month;
-    const startDate = new Date(month + "-01");
+    const startDate = new Date(`${month}-01`);
     const endDate = new Date(
       startDate.getFullYear(),
       startDate.getMonth() + 1,
       0
     );
 
-    // Get all categories with their groups
-    const categories = await prisma.category.findMany({
+    const groups = await prisma.categoryGroup.findMany({
+      orderBy: { order: "asc" },
       include: {
-        group: true,
-        assignments: {
-          where: { month },
-        },
-        transactions: {
-          where: {
-            date: {
-              gte: startDate,
-              lte: endDate,
+        categories: {
+          orderBy: { order: "asc" },
+          include: {
+            assignments: {
+              where: { month },
+            },
+            transactions: {
+              where: {
+                date: {
+                  gte: startDate,
+                  lte: endDate,
+                },
+              },
             },
           },
         },
       },
     });
 
-    // Group by category group
-    const groups = categories.reduce(
-      (acc, category) => {
-        const group = category.group;
-        const groupIndex = acc.findIndex((g) => g.id === group.id);
-
-        const assigned = category.assignments[0]?.amount || 0;
-        const spent = category.transactions.reduce(
+    const formattedGroups = groups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      categories: group.categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        assigned: category.assignments[0]?.amount || 0,
+        spent: category.transactions.reduce(
           (sum, t) => sum + Math.abs(t.amount),
           0
-        );
+        ),
+      })),
+    }));
 
-        const categoryData = {
-          id: category.id,
-          name: category.name,
-          assigned,
-          spent,
-        };
-
-        if (groupIndex === -1) {
-          acc.push({
-            id: group.id,
-            name: group.name,
-            categories: [categoryData],
-          });
-        } else {
-          acc[groupIndex].categories.push(categoryData);
-        }
-
-        return acc;
-      },
-      [] as Array<{ id: string; name: string; categories: any[] }>
-    );
-
-    return NextResponse.json({ groups });
+    return NextResponse.json({ groups: formattedGroups });
   } catch (error) {
     console.error("Budget fetch error:", error);
     return NextResponse.json(
