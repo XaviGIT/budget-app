@@ -50,6 +50,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useDroppable } from "@dnd-kit/core";
 
 interface CategoryGroupProps {
   group: {
@@ -85,11 +86,25 @@ export function CategoryGroup({
   const {
     attributes,
     listeners,
-    setNodeRef,
+    setNodeRef: setSortableRef,
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: `group-${group.id}` });
+  } = useSortable({
+    id: `group-${group.id}`,
+    data: {
+      type: "group",
+      group,
+    },
+  });
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: `group-drop-${group.id}`,
+    data: {
+      type: "group",
+      id: group.id,
+    },
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -132,7 +147,7 @@ export function CategoryGroup({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="space-y-2">
+    <div ref={setSortableRef} style={style} className="space-y-2">
       <div className="flex items-center gap-2">
         <Button
           variant="ghost"
@@ -174,7 +189,11 @@ export function CategoryGroup({
       </div>
 
       {isExpanded && (
-        <div className="space-y-2 pl-10">
+        <div
+          ref={setDroppableRef}
+          className={`space-y-2 pl-10 min-h-[40px] transition-colors p-2
+        ${isOver ? "bg-accent/50 rounded-lg border-2 border-dashed border-accent-foreground/20" : ""}`}
+        >
           <SortableContext
             items={group.categories.map((c) => `category-${c.id}`)}
             strategy={verticalListSortingStrategy}
@@ -187,6 +206,9 @@ export function CategoryGroup({
               />
             ))}
           </SortableContext>
+          {isOver && group.categories.length === 0 && (
+            <div className="h-[40px] rounded-md" />
+          )}
         </div>
       )}
 

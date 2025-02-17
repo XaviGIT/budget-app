@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { CategoryGroup } from "./category-group";
 import { CategoryGroupForm } from "./category-group-form";
 import { useBudget, useReorder } from "@/hooks/useBudget";
-import { DndContext, DragEndEvent, closestCenter } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -19,13 +18,29 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  closestCenter,
+  defaultDropAnimation,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreateCategoryGroup } from "@/hooks/useCategoryGroups";
+import { formatCurrency } from "@/lib/utils";
 
 export function BudgetList() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [activeData, setActiveData] = useState<any>(null);
   const { data: budget, isLoading } = useBudget(format(currentDate, "yyyy-MM"));
   const createGroup = useCreateCategoryGroup();
   const reorder = useReorder();
@@ -46,6 +61,32 @@ export function BudgetList() {
     }
   };
 
+  // Configure sensors for better drag experience
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Start dragging after moving 8px
+      },
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveId(active.id as string);
+
+    // Store the data of the dragged item for the overlay
+    const [type, id] = active.id.toString().split("-");
+    if (type === "category") {
+      const category = budget?.groups
+        .flatMap((g) => g.categories)
+        .find((c) => c.id === id);
+      setActiveData(category);
+    } else if (type === "group") {
+      const group = budget?.groups.find((g) => g.id === id);
+      setActiveData(group);
+    }
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -53,9 +94,9 @@ export function BudgetList() {
 
     // Extract data from the draggable item's id
     const [activeType, activeId] = active.id.toString().split("-");
-    const [, overId] = over.id.toString().split("-");
 
     if (activeType === "group") {
+      const [, overId] = over.id.toString().split("-");
       const oldIndex = budget.groups.findIndex((g) => g.id === activeId);
       const newIndex = budget.groups.findIndex((g) => g.id === overId);
 
@@ -88,37 +129,72 @@ export function BudgetList() {
         g.categories.some((c) => c.id === activeId)
       );
 
-      // Find target group - this could be different if dropping on a category in another group
-      // or the same as source group if reordering within the same group
-      const overCategory = budget.groups
-        .flatMap((g) => g.categories)
-        .find((c) => c.id === overId);
-      const targetGroup = overCategory
-        ? budget.groups.find((g) => g.categories.includes(overCategory))
-        : budget.groups.find((g) => g.id === overId); // In case dropping directly on a group
+      if (!sourceGroup) return;
 
-      if (!sourceGroup || !targetGroup) return;
+      // Handle dropping on a group container vs dropping on a category
+      let targetGroup;
+      let newIndex;
 
-      const oldIndex = sourceGroup.categories.findIndex(
+      // Parse the drop target ID
+      const fullId = over.id.toString();
+      const isGroupDrop = fullId.startsWith("group-drop-");
+      const groupId = isGroupDrop
+        ? fullId.replace("group-drop-", "")
+        : undefined;
+      const isCategoryDrop = !isGroupDrop;
+
+      console.log("Drop target analysis:", {
+        fullId,
+        isGroupDrop,
+        groupId,
+        isCategoryDrop,
+      });
+
+      if (isGroupDrop) {
+        // Dropping directly into a group's droppable area
+        targetGroup = budget.groups.find((g) => g.id === groupId);
+        newIndex = targetGroup?.categories.length || 0;
+      } else if (isCategoryDrop) {
+        // Dropping onto another category
+        const categoryId = fullId.replace("category-", "");
+        targetGroup = budget.groups.find((g) =>
+          g.categories.some((c) => c.id === categoryId)
+        );
+        if (targetGroup) {
+          newIndex = targetGroup.categories.findIndex(
+            (c) => c.id === categoryId
+          );
+        }
+      }
+
+      console.log("Target group:", targetGroup?.name, "New index:", newIndex);
+
+      if (!targetGroup || newIndex === undefined) {
+        console.log("No valid target found, aborting drag");
+        return;
+      }
+
+      // Get the moving category
+      const categoryToMove = sourceGroup.categories.find(
         (c) => c.id === activeId
       );
-      const newIndex = overCategory
-        ? targetGroup.categories.findIndex((c) => c.id === overId)
-        : targetGroup.categories.length; // If dropping directly on a group, append to end
-
-      if (oldIndex === -1) return;
+      if (!categoryToMove) return;
 
       // Create new arrays for immutability
-      const categoryToMove = sourceGroup.categories[oldIndex];
-      const sourceCategories = sourceGroup.categories.filter(
-        (_, i) => i !== oldIndex
-      );
-      const targetCategories = [...targetGroup.categories];
+      let sourceCategories = [...sourceGroup.categories];
+      let targetCategories = [...targetGroup.categories];
 
-      if (overCategory) {
+      // Remove from source group
+      sourceCategories = sourceCategories.filter((c) => c.id !== activeId);
+
+      // Add to target group at correct position
+      if (sourceGroup.id === targetGroup.id) {
+        // Same group - just reorder
+        targetCategories = sourceCategories; // Reset to source without the moved item
         targetCategories.splice(newIndex, 0, categoryToMove);
       } else {
-        targetCategories.push(categoryToMove);
+        // Different groups
+        targetCategories.splice(newIndex, 0, categoryToMove);
       }
 
       // Update all groups
@@ -146,7 +222,7 @@ export function BudgetList() {
             groupId: targetGroup.id,
           });
         } else {
-          // Different groups - move category and reorder
+          // Moving between groups
           await reorder.mutateAsync({
             type: "category",
             items: targetCategories.map((c) => c.id),
@@ -166,6 +242,10 @@ export function BudgetList() {
         });
       }
     }
+
+    // Reset active states
+    setActiveId(null);
+    setActiveData(null);
   };
 
   if (isLoading) return <div className="p-8">Loading budget...</div>;
@@ -204,7 +284,13 @@ export function BudgetList() {
         </div>
       </div>
 
-      <DndContext onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        modifiers={[restrictToVerticalAxis]}
+      >
         <SortableContext
           items={budget?.groups.map((g) => `group-${g.id}`) || []}
           strategy={verticalListSortingStrategy}
@@ -215,11 +301,36 @@ export function BudgetList() {
                 key={group.id}
                 group={group}
                 month={format(currentDate, "yyyy-MM")}
-                otherGroups={[]}
+                otherGroups={budget.groups.filter((g) => g.id !== group.id)}
               />
             ))}
           </div>
         </SortableContext>
+
+        <DragOverlay dropAnimation={defaultDropAnimation}>
+          {activeId && activeData && (
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              {activeId.startsWith("category-") ? (
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">{activeData.name}</div>
+                  <div className="w-32 text-right">
+                    {formatCurrency(activeData.assigned)}
+                  </div>
+                  <div className="w-32 text-right text-muted-foreground">
+                    {formatCurrency(activeData.spent)}
+                  </div>
+                  <div className="w-32 text-right">
+                    {formatCurrency(activeData.assigned - activeData.spent)}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold">{activeData.name}</h2>
+                </div>
+              )}
+            </div>
+          )}
+        </DragOverlay>
       </DndContext>
     </div>
   );
