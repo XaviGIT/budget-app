@@ -4,6 +4,7 @@ interface Category {
   id: string;
   name: string;
   icon: string;
+  groupId: string;
 }
 
 interface CategoryFormData {
@@ -20,30 +21,6 @@ export function useCategories() {
         throw new Error("Failed to fetch categories");
       }
       return response.json();
-    },
-  });
-}
-
-export function useCreateCategory() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (data: CategoryFormData) => {
-      const response = await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create category");
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
 }
@@ -74,6 +51,7 @@ export function useUpdateCategory() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["budget"] });
     },
   });
 }
@@ -94,6 +72,7 @@ export function useDeleteCategory() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["budget"] });
     },
   });
 }

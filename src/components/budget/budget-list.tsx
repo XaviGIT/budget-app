@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { CategoryGroup } from "./category-group";
 import { CategoryGroupForm } from "./category-group-form";
 import { useBudget, useReorder } from "@/hooks/useBudget";
-import { useCreateCategoryGroup } from "@/hooks/useCategoryGroups";
 import { DndContext, DragEndEvent, closestCenter } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -22,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCreateCategoryGroup } from "@/hooks/useCategoryGroups";
 
 export function BudgetList() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -182,6 +182,7 @@ export function BudgetList() {
                 key={group.id}
                 group={group}
                 month={format(currentDate, "yyyy-MM")}
+                otherGroups={[]}
               />
             ))}
           </div>

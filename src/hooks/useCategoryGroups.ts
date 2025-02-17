@@ -65,7 +65,8 @@ export function useUpdateCategoryGroup() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update category group");
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update category group");
       }
 
       return response.json();
@@ -95,7 +96,8 @@ export function useDeleteCategoryGroup() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to delete category group");
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete category group");
       }
     },
     onSuccess: () => {
