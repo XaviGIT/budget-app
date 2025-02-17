@@ -36,15 +36,21 @@ export function useReorder() {
       type,
       items,
       groupId,
+      moveData,
     }: {
       type: "group" | "category";
       items: string[];
       groupId?: string;
+      moveData?: {
+        categoryId: string;
+        sourceGroupId: string;
+        targetGroupId: string;
+      };
     }) => {
       const response = await fetch("/api/budget/reorder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, items, groupId }),
+        body: JSON.stringify({ type, items, groupId, moveData }),
       });
 
       if (!response.ok) {

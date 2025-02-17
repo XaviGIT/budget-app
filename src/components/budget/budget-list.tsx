@@ -52,14 +52,11 @@ export function BudgetList() {
     if (!over || active.id === over.id || !budget?.groups) return;
 
     // Extract data from the draggable item's id
-    const [type, id] = active.id.toString().split("-");
-    const [overType, overId] = over.id.toString().split("-");
+    const [activeType, activeId] = active.id.toString().split("-");
+    const [, overId] = over.id.toString().split("-");
 
-    // Only allow dropping items of the same type
-    if (type !== overType) return;
-
-    if (type === "group") {
-      const oldIndex = budget.groups.findIndex((g) => g.id === id);
+    if (activeType === "group") {
+      const oldIndex = budget.groups.findIndex((g) => g.id === activeId);
       const newIndex = budget.groups.findIndex((g) => g.id === overId);
 
       if (oldIndex === -1 || newIndex === -1) return;
@@ -81,53 +78,89 @@ export function BudgetList() {
       } catch (error) {
         console.error("Failed to reorder groups:", error);
         toast.error("Failed to reorder groups");
-        // Revert optimistic update on error
         queryClient.invalidateQueries({
           queryKey: ["budget", format(currentDate, "yyyy-MM")],
         });
       }
-    } else if (type === "category") {
-      const sourceGroupId = budget.groups.find((g) =>
-        g.categories.some((c) => c.id === id)
-      )?.id;
-      const targetGroupId = budget.groups.find((g) =>
-        g.categories.some((c) => c.id === overId)
-      )?.id;
-
-      if (!sourceGroupId || !targetGroupId || sourceGroupId !== targetGroupId)
-        return;
-
-      const group = budget.groups.find((g) => g.id === sourceGroupId);
-      if (!group) return;
-
-      const oldIndex = group.categories.findIndex((c) => c.id === id);
-      const newIndex = group.categories.findIndex((c) => c.id === overId);
-
-      if (oldIndex === -1 || newIndex === -1) return;
-
-      // Optimistically update the local state
-      const newCategories = [...group.categories];
-      const [movedCategory] = newCategories.splice(oldIndex, 1);
-      newCategories.splice(newIndex, 0, movedCategory);
-
-      const newGroups = budget.groups.map((g) =>
-        g.id === sourceGroupId ? { ...g, categories: newCategories } : g
+    } else if (activeType === "category") {
+      // Find source group (where the category is coming from)
+      const sourceGroup = budget.groups.find((g) =>
+        g.categories.some((c) => c.id === activeId)
       );
 
+      // Find target group - this could be different if dropping on a category in another group
+      // or the same as source group if reordering within the same group
+      const overCategory = budget.groups
+        .flatMap((g) => g.categories)
+        .find((c) => c.id === overId);
+      const targetGroup = overCategory
+        ? budget.groups.find((g) => g.categories.includes(overCategory))
+        : budget.groups.find((g) => g.id === overId); // In case dropping directly on a group
+
+      if (!sourceGroup || !targetGroup) return;
+
+      const oldIndex = sourceGroup.categories.findIndex(
+        (c) => c.id === activeId
+      );
+      const newIndex = overCategory
+        ? targetGroup.categories.findIndex((c) => c.id === overId)
+        : targetGroup.categories.length; // If dropping directly on a group, append to end
+
+      if (oldIndex === -1) return;
+
+      // Create new arrays for immutability
+      const categoryToMove = sourceGroup.categories[oldIndex];
+      const sourceCategories = sourceGroup.categories.filter(
+        (_, i) => i !== oldIndex
+      );
+      const targetCategories = [...targetGroup.categories];
+
+      if (overCategory) {
+        targetCategories.splice(newIndex, 0, categoryToMove);
+      } else {
+        targetCategories.push(categoryToMove);
+      }
+
+      // Update all groups
+      const newGroups = budget.groups.map((g) => {
+        if (g.id === sourceGroup.id) {
+          return { ...g, categories: sourceCategories };
+        }
+        if (g.id === targetGroup.id) {
+          return { ...g, categories: targetCategories };
+        }
+        return g;
+      });
+
+      // Optimistically update the UI
       queryClient.setQueryData(["budget", format(currentDate, "yyyy-MM")], {
         groups: newGroups,
       });
 
       try {
-        await reorder.mutateAsync({
-          type: "category",
-          items: newCategories.map((c) => c.id),
-          groupId: sourceGroupId,
-        });
+        if (sourceGroup.id === targetGroup.id) {
+          // Same group - just reorder
+          await reorder.mutateAsync({
+            type: "category",
+            items: targetCategories.map((c) => c.id),
+            groupId: targetGroup.id,
+          });
+        } else {
+          // Different groups - move category and reorder
+          await reorder.mutateAsync({
+            type: "category",
+            items: targetCategories.map((c) => c.id),
+            groupId: targetGroup.id,
+            moveData: {
+              categoryId: activeId,
+              sourceGroupId: sourceGroup.id,
+              targetGroupId: targetGroup.id,
+            },
+          });
+        }
       } catch (error) {
         console.error("Failed to reorder categories:", error);
         toast.error("Failed to reorder categories");
-        // Revert optimistic update on error
         queryClient.invalidateQueries({
           queryKey: ["budget", format(currentDate, "yyyy-MM")],
         });
