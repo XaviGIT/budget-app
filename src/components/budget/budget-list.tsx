@@ -250,6 +250,14 @@ export function BudgetList() {
 
   if (isLoading) return <div className="p-8">Loading budget...</div>;
 
+  const categoryGroups =
+    budget?.groups.filter(
+      (group) =>
+        // Show all groups except empty Uncategorized
+        group.name !== "Uncategorized" ||
+        (group.name === "Uncategorized" && group.categories.length > 0)
+    ) || [];
+
   return (
     <div className="space-y-8 p-8">
       <div className="flex items-center justify-between">
@@ -292,16 +300,16 @@ export function BudgetList() {
         modifiers={[restrictToVerticalAxis]}
       >
         <SortableContext
-          items={budget?.groups.map((g) => `group-${g.id}`) || []}
+          items={categoryGroups.map((g) => `group-${g.id}`) || []}
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-6">
-            {budget?.groups.map((group) => (
+            {categoryGroups.map((group) => (
               <CategoryGroup
                 key={group.id}
                 group={group}
                 month={format(currentDate, "yyyy-MM")}
-                otherGroups={budget.groups.filter((g) => g.id !== group.id)}
+                otherGroups={categoryGroups.filter((g) => g.id !== group.id)}
               />
             ))}
           </div>

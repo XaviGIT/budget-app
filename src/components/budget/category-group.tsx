@@ -49,7 +49,6 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
 
 interface CategoryGroupProps {
@@ -87,8 +86,6 @@ export function CategoryGroup({
     attributes,
     listeners,
     setNodeRef: setSortableRef,
-    transform,
-    transition,
     isDragging,
   } = useSortable({
     id: `group-${group.id}`,
@@ -107,8 +104,6 @@ export function CategoryGroup({
   });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
     opacity: isDragging ? 0.5 : 1,
   };
 

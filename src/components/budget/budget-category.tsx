@@ -30,7 +30,6 @@ import { useSaveAssignment } from "@/hooks/useBudget";
 import { useUpdateCategory, useDeleteCategory } from "@/hooks/useCategories";
 import { toast } from "sonner";
 import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
 interface BudgetCategoryProps {
   category: {
@@ -55,24 +54,14 @@ export function BudgetCategory({ category, month }: BudgetCategoryProps) {
   const updateCategory = useUpdateCategory();
   const deleteCategory = useDeleteCategory();
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: `category-${category.id}`,
-    data: {
-      type: "category",
-      category,
-    },
+    animateLayoutChanges: () => true,
   });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: "relative" as const,
   };
 
   const handleAssignmentBlur = async () => {
