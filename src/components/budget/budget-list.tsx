@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CategoryGroup } from "./category-group";
 import { CategoryGroupForm } from "./category-group-form";
 import { useBudget, useReorder } from "@/hooks/useBudget";
+import { useAvailableFunds } from "@/hooks/useAvailableFunds";
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -41,7 +42,12 @@ export function BudgetList() {
   const [activeId, setActiveId] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [activeData, setActiveData] = useState<any>(null);
-  const { data: budget, isLoading } = useBudget(format(currentDate, "yyyy-MM"));
+
+  const currentMonth = format(currentDate, "yyyy-MM");
+  const { data: budget, isLoading: budgetLoading } = useBudget(currentMonth);
+  const { data: funds, isLoading: fundsLoading } =
+    useAvailableFunds(currentMonth);
+
   const createGroup = useCreateCategoryGroup();
   const reorder = useReorder();
   const queryClient = useQueryClient();
@@ -107,7 +113,7 @@ export function BudgetList() {
       const [movedGroup] = newGroups.splice(oldIndex, 1);
       newGroups.splice(newIndex, 0, movedGroup);
 
-      queryClient.setQueryData(["budget", format(currentDate, "yyyy-MM")], {
+      queryClient.setQueryData(["budget", currentMonth], {
         groups: newGroups,
       });
 
@@ -120,7 +126,7 @@ export function BudgetList() {
         console.error("Failed to reorder groups:", error);
         toast.error("Failed to reorder groups");
         queryClient.invalidateQueries({
-          queryKey: ["budget", format(currentDate, "yyyy-MM")],
+          queryKey: ["budget", currentMonth],
         });
       }
     } else if (activeType === "category") {
@@ -143,13 +149,6 @@ export function BudgetList() {
         : undefined;
       const isCategoryDrop = !isGroupDrop;
 
-      console.log("Drop target analysis:", {
-        fullId,
-        isGroupDrop,
-        groupId,
-        isCategoryDrop,
-      });
-
       if (isGroupDrop) {
         // Dropping directly into a group's droppable area
         targetGroup = budget.groups.find((g) => g.id === groupId);
@@ -167,12 +166,7 @@ export function BudgetList() {
         }
       }
 
-      console.log("Target group:", targetGroup?.name, "New index:", newIndex);
-
-      if (!targetGroup || newIndex === undefined) {
-        console.log("No valid target found, aborting drag");
-        return;
-      }
+      if (!targetGroup || newIndex === undefined) return;
 
       // Get the moving category
       const categoryToMove = sourceGroup.categories.find(
@@ -209,7 +203,7 @@ export function BudgetList() {
       });
 
       // Optimistically update the UI
-      queryClient.setQueryData(["budget", format(currentDate, "yyyy-MM")], {
+      queryClient.setQueryData(["budget", currentMonth], {
         groups: newGroups,
       });
 
@@ -238,7 +232,7 @@ export function BudgetList() {
         console.error("Failed to reorder categories:", error);
         toast.error("Failed to reorder categories");
         queryClient.invalidateQueries({
-          queryKey: ["budget", format(currentDate, "yyyy-MM")],
+          queryKey: ["budget", currentMonth],
         });
       }
     }
@@ -248,7 +242,8 @@ export function BudgetList() {
     setActiveData(null);
   };
 
-  if (isLoading) return <div className="p-8">Loading budget...</div>;
+  if (budgetLoading || fundsLoading)
+    return <div className="p-8">Loading budget...</div>;
 
   const categoryGroups =
     budget?.groups.filter(
@@ -261,7 +256,43 @@ export function BudgetList() {
   return (
     <div className="space-y-8 p-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Budget</h1>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">Budget</h1>
+          {funds && (
+            <div className="flex gap-8">
+              <div>
+                <div className="text-sm text-muted-foreground">
+                  Total Balance
+                </div>
+                <div className="text-xl font-semibold">
+                  {formatCurrency(funds.totalBalance)}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">
+                  Assigned in Budget
+                </div>
+                <div className="text-xl font-semibold">
+                  {formatCurrency(funds.totalAssigned)}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">
+                  Available to Assign
+                </div>
+                <div
+                  className={`text-xl font-semibold ${
+                    funds.availableToAssign < 0
+                      ? "text-red-600"
+                      : "text-green-600"
+                  }`}
+                >
+                  {formatCurrency(funds.availableToAssign)}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-4">
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
@@ -308,7 +339,7 @@ export function BudgetList() {
               <CategoryGroup
                 key={group.id}
                 group={group}
-                month={format(currentDate, "yyyy-MM")}
+                month={currentMonth}
                 otherGroups={categoryGroups.filter((g) => g.id !== group.id)}
               />
             ))}
