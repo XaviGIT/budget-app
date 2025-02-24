@@ -69,15 +69,26 @@ export function useSaveAssignment() {
       categoryId,
       month,
       amount,
+      budgetConfig,
     }: {
       categoryId: string;
       month: string;
-      amount: number;
+      amount?: number;
+      budgetConfig?: {
+        type: "custom" | "monthly" | "target";
+        amount: number;
+        targetDate?: string;
+        targetAmount?: number;
+      };
     }) => {
       const response = await fetch(`/api/budget/${month}/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ categoryId, amount }),
+        body: JSON.stringify({
+          categoryId,
+          amount,
+          budgetConfig,
+        }),
       });
 
       if (!response.ok) {

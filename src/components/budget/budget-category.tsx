@@ -1,35 +1,34 @@
 import { useState } from "react";
-import { GripVertical, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { parseISO, differenceInMonths } from "date-fns";
+import { GripVertical, MoreHorizontal, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { formatCurrency } from "@/lib/utils";
 import { useSaveAssignment } from "@/hooks/useBudget";
-import { useUpdateCategory, useDeleteCategory } from "@/hooks/useCategories";
-import { toast } from "sonner";
 import { useSortable } from "@dnd-kit/sortable";
+import { toast } from "sonner";
+
+type BudgetType = "custom" | "monthly" | "target";
+
+interface BudgetConfig {
+  type: BudgetType;
+  amount: number;
+  targetDate?: string;
+  targetAmount?: number;
+}
 
 interface BudgetCategoryProps {
   category: {
@@ -37,133 +36,177 @@ interface BudgetCategoryProps {
     name: string;
     assigned: number;
     spent: number;
+    budgetConfig?: BudgetConfig;
   };
   month: string;
 }
 
 export function BudgetCategory({ category, month }: BudgetCategoryProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isEditingAssigned, setIsEditingAssigned] = useState(false);
-  const [assignedAmount, setAssignedAmount] = useState(
-    category.assigned.toString()
+  const [budgetType, setBudgetType] = useState<BudgetType>(
+    category.budgetConfig?.type || "custom"
   );
-  const [editName, setEditName] = useState(category.name);
+  const [amount, setAmount] = useState(
+    category.budgetConfig?.amount?.toString() || "0"
+  );
+  const [targetDate, setTargetDate] = useState(
+    category.budgetConfig?.targetDate || ""
+  );
+  const [targetAmount, setTargetAmount] = useState(
+    category.budgetConfig?.targetAmount?.toString() || ""
+  );
 
   const saveAssignment = useSaveAssignment();
-  const updateCategory = useUpdateCategory();
-  const deleteCategory = useDeleteCategory();
 
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: `category-${category.id}`,
     animateLayoutChanges: () => true,
   });
 
-  const style = {
-    opacity: isDragging ? 0.5 : 1,
-    position: "relative" as const,
+  const calculateMonthlyTarget = () => {
+    if (!targetDate || !targetAmount) return 0;
+    const today = new Date();
+    const target = parseISO(targetDate);
+    const monthsLeft = differenceInMonths(target, today) + 1;
+    const amountNeeded = parseFloat(targetAmount);
+    return Math.ceil(amountNeeded / monthsLeft);
   };
 
-  const handleAssignmentBlur = async () => {
-    setIsEditingAssigned(false);
-    const amount = parseFloat(assignedAmount);
-    if (!isNaN(amount) && amount !== category.assigned) {
-      try {
-        await saveAssignment.mutateAsync({
-          categoryId: category.id,
-          month,
-          amount,
-        });
-        toast.success("Budget assignment updated");
-      } catch {
-        toast.error("Failed to update budget assignment");
-        setAssignedAmount(category.assigned.toString());
-      }
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (!editName.trim()) {
-      toast.error("Category name is required");
-      return;
-    }
-
+  const handleSave = async () => {
     try {
-      await updateCategory.mutateAsync({
-        id: category.id,
-        data: {
-          name: editName,
-          icon: "📁", // Keeping the existing icon
+      const parsedAmount = parseFloat(amount);
+      if (isNaN(parsedAmount) || parsedAmount < 0) {
+        toast.error("Please enter a valid amount");
+        return;
+      }
+
+      if (budgetType === "target") {
+        if (!targetDate || !targetAmount) {
+          toast.error("Please enter target date and amount");
+          return;
+        }
+        const parsedTarget = parseFloat(targetAmount);
+        if (isNaN(parsedTarget) || parsedTarget < 0) {
+          toast.error("Please enter a valid target amount");
+          return;
+        }
+      }
+
+      await saveAssignment.mutateAsync({
+        categoryId: category.id,
+        month,
+        budgetConfig: {
+          type: budgetType,
+          amount: parsedAmount,
+          targetDate: budgetType === "target" ? targetDate : undefined,
+          targetAmount:
+            budgetType === "target" ? parseFloat(targetAmount) : undefined,
         },
       });
-      toast.success("Category updated");
+
       setIsEditing(false);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update category"
-      );
+      toast.success("Budget updated");
+    } catch {
+      toast.error("Failed to update budget");
     }
   };
 
-  const handleDelete = async () => {
-    if (category.spent > 0) {
-      toast.error("Cannot delete category with transactions");
-      setIsDeleting(false);
-      return;
+  const displayAmount = () => {
+    if (!isEditing) {
+      return formatCurrency(category.assigned);
     }
 
-    try {
-      await deleteCategory.mutateAsync(category.id);
-      toast.success("Category deleted");
-      setIsDeleting(false);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete category"
-      );
+    if (budgetType === "target") {
+      const monthlyAmount = calculateMonthlyTarget();
+      return formatCurrency(monthlyAmount);
     }
+
+    return formatCurrency(parseFloat(amount) || 0);
   };
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={`flex items-center gap-4 rounded-md p-2 ${
-        isDragging ? "opacity-50 bg-accent" : "hover:bg-accent/50"
-      }`}
+      style={{ opacity: isDragging ? 0.5 : 1 }}
+      className="flex items-center gap-4 rounded-md p-2 hover:bg-accent/50"
     >
       <div {...attributes} {...listeners}>
         <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
       </div>
+
       <div className="flex-1">{category.name}</div>
-      <div
-        className="w-32 text-right cursor-pointer"
-        onClick={() => setIsEditingAssigned(true)}
-      >
-        {isEditingAssigned ? (
-          <Input
-            type="number"
-            value={assignedAmount}
-            onChange={(e) => setAssignedAmount(e.target.value)}
-            onBlur={handleAssignmentBlur}
-            className="h-8"
-            autoFocus
-          />
-        ) : (
-          formatCurrency(category.assigned)
-        )}
-      </div>
-      <div className="w-32 text-right text-muted-foreground">
-        {formatCurrency(category.spent)}
-      </div>
-      <div
-        className={`w-32 text-right ${
-          category.assigned - category.spent < 0
-            ? "text-red-600"
-            : "text-green-600"
-        }`}
-      >
-        {formatCurrency(category.assigned - category.spent)}
-      </div>
+
+      {isEditing ? (
+        <div className="flex gap-2 items-center">
+          <Select
+            value={budgetType}
+            onValueChange={(value: BudgetType) => setBudgetType(value)}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="custom">Custom</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="target">Target</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {budgetType === "target" ? (
+            <>
+              <Input
+                type="date"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+                className="w-32"
+              />
+              <Input
+                type="number"
+                value={targetAmount}
+                onChange={(e) => setTargetAmount(e.target.value)}
+                placeholder="Target amount"
+                className="w-32"
+              />
+            </>
+          ) : (
+            <Input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-32"
+            />
+          )}
+
+          <Button onClick={handleSave} size="sm">
+            Save
+          </Button>
+          <Button onClick={() => setIsEditing(false)} variant="ghost" size="sm">
+            Cancel
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div
+            className="w-32 text-right cursor-pointer"
+            onClick={() => setIsEditing(true)}
+          >
+            {displayAmount()}
+          </div>
+          <div className="w-32 text-right text-muted-foreground">
+            {formatCurrency(category.spent)}
+          </div>
+          <div
+            className={`w-32 text-right ${
+              category.assigned - category.spent < 0
+                ? "text-red-600"
+                : "text-green-600"
+            }`}
+          >
+            {formatCurrency(category.assigned - category.spent)}
+          </div>
+        </>
+      )}
+
       <div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -174,68 +217,11 @@ export function BudgetCategory({ category, month }: BudgetCategoryProps) {
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setIsEditing(true)}>
               <Pencil className="h-4 w-4 mr-2" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => setIsDeleting(true)}
-              className="text-red-600"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
+              Edit Budget
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-      {/* Edit Dialog */}
-      <Dialog open={isEditing} onOpenChange={setIsEditing}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Category</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <Input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              placeholder="Category Name"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditing(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdate}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Dialog */}
-      <AlertDialog open={isDeleting} onOpenChange={setIsDeleting}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Category</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this category? This action cannot
-              be undone.
-              {category.spent > 0 && (
-                <div className="mt-2 text-red-600">
-                  Warning: This category has transactions. Delete them first.
-                </div>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
-              disabled={category.spent > 0}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

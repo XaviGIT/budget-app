@@ -52,9 +52,10 @@ model Category {
   group        CategoryGroup      @relation(fields: [groupId], references: [id])
   transactions Transaction[]
   assignments  BudgetAssignment[]
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  budgetConfig Json? // Stores the budget configuration
   Budget       Budget[]
+
+  @@index([groupId])
 }
 
 model BudgetAssignment {
