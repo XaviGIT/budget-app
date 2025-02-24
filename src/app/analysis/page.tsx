@@ -1,7 +1,10 @@
+import { Suspense } from "react";
+import { AnalysisList } from "@/components/analysis/analysis-list";
+
 export default function AnalysisPage() {
   return (
-    <div>
-      <h1 className="text-3xl font-bold">Analysis</h1>
-    </div>
-  )
+    <Suspense fallback={<div className="p-8">Loading analysis...</div>}>
+      <AnalysisList />
+    </Suspense>
+  );
 }
