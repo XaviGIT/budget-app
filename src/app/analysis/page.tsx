@@ -1,5 +1,5 @@
-import { Suspense } from "react";
 import { AnalysisList } from "@/components/analysis/analysis-list";
+import { Suspense } from "react";
 
 export default function AnalysisPage() {
   return (

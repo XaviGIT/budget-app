@@ -44,16 +44,17 @@ model CategoryGroup {
 }
 
 model Category {
-  id           String             @id @default(cuid())
-  name         String
-  icon         String
-  order        Int                @default(0)
-  groupId      String
-  group        CategoryGroup      @relation(fields: [groupId], references: [id])
-  transactions Transaction[]
-  assignments  BudgetAssignment[]
-  budgetConfig Json? // Stores the budget configuration
-  Budget       Budget[]
+  id             String             @id @default(cuid())
+  name           String
+  icon           String
+  order          Int                @default(0)
+  groupId        String
+  group          CategoryGroup      @relation(fields: [groupId], references: [id])
+  transactions   Transaction[]
+  assignments    BudgetAssignment[]
+  budgetConfig   Json? // Stores the budget configuration
+  Budget         Budget[]
+  PlannedExpense PlannedExpense[]
 
   @@index([groupId])
 }

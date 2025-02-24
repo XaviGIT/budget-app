@@ -11,6 +11,7 @@ export function MainNav() {
     { href: "/accounts", label: "Accounts" },
     { href: "/transactions", label: "Transactions" },
     { href: "/budget", label: "Budget" },
+    { href: "/expenses", label: "Expenses" },
     { href: "/analysis", label: "Analysis" },
   ];
 
