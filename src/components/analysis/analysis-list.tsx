@@ -51,8 +51,8 @@ export function AnalysisList() {
   // Calculate spending by category
   const spendingByCategory = filteredTransactions.reduce(
     (acc, transaction) => {
-      if (transaction.amount < 0) {
-        // Only count expenses
+      if (transaction.amount < 0 && transaction.category) {
+        // Only count expenses (not transfers or income)
         const categoryName = transaction.category.name;
         acc[categoryName] =
           (acc[categoryName] || 0) + Math.abs(transaction.amount);
