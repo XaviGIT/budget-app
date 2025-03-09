@@ -50,6 +50,19 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   });
   const [error, setError] = useState("");
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedPayeeData, setSelectedPayeeData] = useState<any>(null);
+  const isTransfer = !!selectedPayeeData?.account;
+
+  useEffect(() => {
+    if (formData.payeeId && payees.length > 0) {
+      const payee = payees.find((p) => p.id === formData.payeeId);
+      setSelectedPayeeData(payee);
+    } else {
+      setSelectedPayeeData(null);
+    }
+  }, [formData.payeeId, payees]);
+
   useEffect(() => {
     if (defaultAccountName && accounts.length > 0 && !formData.accountId) {
       const defaultAccount = accounts.find(
@@ -66,7 +79,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     setError("");
 
     // Validate required fields
-    if (!formData.accountId || !formData.payeeId || !formData.categoryId) {
+    if (
+      !formData.accountId ||
+      !formData.payeeId ||
+      (!isTransfer && !formData.categoryId)
+    ) {
       setError("Please fill in all required fields");
       return;
     }
@@ -153,21 +170,31 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       </div>
 
       <div>
-        <ComboboxWithCreate
-          placeholder="Select category"
-          value={formData.categoryId}
-          onChange={(value) =>
-            setFormData((prev) => ({ ...prev, categoryId: value }))
-          }
-          options={categories.map((c) => ({ value: c.id, label: c.name }))}
-          onCreateNew={async (name) => {
-            const result = await createCategory.mutateAsync({
-              name,
-              icon: "📁",
-            });
-            return result.id;
-          }}
-        />
+        {isTransfer ? (
+          <p className="text-sm text-muted-foreground mt-1">
+            Transfers between accounts don&apos;t have categories
+          </p>
+        ) : (
+          <ComboboxWithCreate
+            placeholder={
+              isTransfer
+                ? "Category (optional for transfers)"
+                : "Select category"
+            }
+            value={formData.categoryId}
+            onChange={(value) =>
+              setFormData((prev) => ({ ...prev, categoryId: value }))
+            }
+            options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            onCreateNew={async (name) => {
+              const result = await createCategory.mutateAsync({
+                name,
+                icon: "📁",
+              });
+              return result.id;
+            }}
+          />
+        )}
       </div>
 
       <div>

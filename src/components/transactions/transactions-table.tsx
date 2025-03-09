@@ -110,12 +110,16 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
     }
   };
 
-  const formatTransactionAmount = (transaction: Transaction) => {
+  function formatTransactionAmount(transaction: Transaction) {
+    const amount = Math.abs(transaction.amount);
+
     if (transaction.toAccountId) {
-      return `${formatCurrency(Math.abs(transaction.amount))} → ${transaction.payee.name}`;
+      // return `${formatCurrency(amount)} → ${transaction.payee.name}`;
+      return `${formatCurrency(amount)}`;
     }
-    return `-${formatCurrency(Math.abs(transaction.amount))}`;
-  };
+
+    return `-${formatCurrency(amount)}`;
+  }
 
   return (
     <>
@@ -140,7 +144,11 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                 </TableCell>
                 <TableCell>{transaction.account.name}</TableCell>
                 <TableCell>{transaction.payee.name}</TableCell>
-                <TableCell>{transaction.category.name}</TableCell>
+                <TableCell>
+                  {transaction.category
+                    ? transaction.category.name
+                    : "Transfer"}
+                </TableCell>
                 <TableCell>{transaction.memo}</TableCell>
                 <TableCell
                   className={`text-right ${

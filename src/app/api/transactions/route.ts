@@ -160,6 +160,8 @@ export async function POST(request: Request) {
 
     const amount = parseFloat(data.amount);
 
+    const isTransfer = !!targetPayee?.account;
+
     const transaction = await prisma.$transaction(async (tx) => {
       // Create the transaction
       const transaction = await tx.transaction.create({
@@ -167,7 +169,7 @@ export async function POST(request: Request) {
           date: new Date(data.date),
           accountId: data.accountId,
           payeeId: data.payeeId,
-          categoryId: data.categoryId,
+          categoryId: isTransfer ? null : data.categoryId,
           amount: -amount, // Negative for outflow
           memo: data.memo || null,
           toAccountId: targetPayee?.account?.id || null,
@@ -196,10 +198,20 @@ export async function POST(request: Request) {
 
       // If this is a transfer, update target account balance
       if (targetPayee?.account) {
-        await tx.account.update({
-          where: { id: targetPayee.account.id },
-          data: { balance: { increment: amount } },
-        });
+        // Handle differently based on account type
+        if (targetPayee.account.type === "CREDIT") {
+          // For credit accounts, decreasing balance means reducing debt
+          await tx.account.update({
+            where: { id: targetPayee.account.id },
+            data: { balance: { decrement: amount } },
+          });
+        } else {
+          // For regular accounts, increase the balance
+          await tx.account.update({
+            where: { id: targetPayee.account.id },
+            data: { balance: { increment: amount } },
+          });
+        }
       }
 
       return transaction;

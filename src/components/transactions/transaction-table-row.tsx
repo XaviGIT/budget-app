@@ -204,10 +204,11 @@ export function TransactionRowItem({
   function formatTransactionAmount(
     transaction: TransactionRowProps["transaction"]
   ) {
-    const amount = transaction.amount;
+    const amount = Math.abs(transaction.amount);
 
     if (transaction.toAccountId) {
-      return `${formatCurrency(amount)} → ${transaction.payee.name}`;
+      // return `${formatCurrency(amount)} → ${transaction.payee.name}`;
+      return `${formatCurrency(amount)}`;
     }
 
     return `-${formatCurrency(amount)}`;
@@ -224,7 +225,9 @@ export function TransactionRowItem({
       <TableCell>{transaction.formattedDate}</TableCell>
       <TableCell>{transaction.account.name}</TableCell>
       <TableCell>{transaction.payee.name}</TableCell>
-      <TableCell>{transaction.category.name}</TableCell>
+      <TableCell>
+        {transaction.category ? transaction.category.name : "Transfer"}
+      </TableCell>
       <TableCell>{transaction.memo}</TableCell>
       <TableCell
         className={`text-right ${
