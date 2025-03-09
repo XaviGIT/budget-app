@@ -44,17 +44,16 @@ model CategoryGroup {
 }
 
 model Category {
-  id             String             @id @default(cuid())
-  name           String
-  icon           String
-  order          Int                @default(0)
-  groupId        String
-  group          CategoryGroup      @relation(fields: [groupId], references: [id])
-  transactions   Transaction[]
-  assignments    BudgetAssignment[]
-  budgetConfig   Json? // Stores the budget configuration
-  Budget         Budget[]
-  PlannedExpense PlannedExpense[]
+  id           String             @id @default(cuid())
+  name         String
+  icon         String
+  order        Int                @default(0)
+  groupId      String
+  group        CategoryGroup      @relation(fields: [groupId], references: [id])
+  transactions Transaction[]
+  assignments  BudgetAssignment[]
+  budgetConfig Json? // Stores the budget configuration
+  Budget       Budget[]
 
   @@index([groupId])
 }
@@ -72,21 +71,21 @@ model BudgetAssignment {
 }
 
 model Transaction {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   date        DateTime
-  payee       Payee    @relation(fields: [payeeId], references: [id])
+  payee       Payee     @relation(fields: [payeeId], references: [id])
   payeeId     String
-  category    Category @relation(fields: [categoryId], references: [id])
-  categoryId  String
-  account     Account  @relation(fields: [accountId], references: [id])
+  category    Category? @relation(fields: [categoryId], references: [id])
+  categoryId  String?
+  account     Account   @relation(fields: [accountId], references: [id])
   accountId   String
   amount      Float // Positive number: expense amount or transfer amount
   memo        String?
   // For transfers, we need the destination account
-  toAccount   Account? @relation("TransferToAccount", fields: [toAccountId], references: [id])
+  toAccount   Account?  @relation("TransferToAccount", fields: [toAccountId], references: [id])
   toAccountId String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@map("transactions")
 }

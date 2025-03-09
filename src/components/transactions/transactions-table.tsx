@@ -110,12 +110,20 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
     }
   };
 
-  const formatTransactionAmount = (transaction: Transaction) => {
-    if (transaction.toAccountId) {
-      return `${formatCurrency(Math.abs(transaction.amount))} → ${transaction.payee.name}`;
+  function formatTransactionAmount(transaction: Transaction) {
+    const amount = Math.abs(transaction.amount);
+
+    if (transaction.amount > 0) {
+      // Income
+      return `+${formatCurrency(amount)}`;
+    } else if (transaction.toAccountId) {
+      // Transfer
+      return `${formatCurrency(amount)}`;
+    } else {
+      // Expense
+      return `-${formatCurrency(amount)}`;
     }
-    return `-${formatCurrency(Math.abs(transaction.amount))}`;
-  };
+  }
 
   return (
     <>
@@ -140,11 +148,19 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                 </TableCell>
                 <TableCell>{transaction.account.name}</TableCell>
                 <TableCell>{transaction.payee.name}</TableCell>
-                <TableCell>{transaction.category.name}</TableCell>
+                <TableCell>
+                  {transaction.category
+                    ? transaction.category.name
+                    : "Transfer"}
+                </TableCell>
                 <TableCell>{transaction.memo}</TableCell>
                 <TableCell
                   className={`text-right ${
-                    transaction.toAccountId ? "text-blue-600" : "text-red-600"
+                    transaction.amount > 0
+                      ? "text-green-600" // Income
+                      : transaction.toAccountId
+                        ? "text-blue-600" // Transfer
+                        : "text-red-600" // Expense
                   }`}
                 >
                   {formatTransactionAmount(transaction)}
@@ -201,6 +217,8 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                 categoryId: editingTransaction.categoryId,
                 amount: Math.abs(editingTransaction.amount).toString(),
                 memo: editingTransaction.memo || "",
+                transactionType:
+                  editingTransaction.amount > 0 ? "income" : "expense",
               }}
               onSubmit={handleEdit}
               submitLabel="Update Transaction"
