@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create";
+import { Switch } from "@/components/ui/switch";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories, useCreateCategory } from "@/hooks/useCategories";
 import { useCreatePayee, usePayees } from "@/hooks/usePayees";
@@ -23,6 +24,7 @@ interface TransactionFormProps {
     categoryId: string;
     amount: string;
     memo: string;
+    transactionType: "expense" | "income";
   };
   defaultAccountName?: string;
   submitLabel?: string;
@@ -47,12 +49,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     categoryId: initialData?.categoryId || "",
     amount: initialData?.amount || "",
     memo: initialData?.memo || "",
+    transactionType: initialData?.transactionType || "expense",
   });
   const [error, setError] = useState("");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedPayeeData, setSelectedPayeeData] = useState<any>(null);
   const isTransfer = !!selectedPayeeData?.account;
+  const isIncome = formData.transactionType === "income";
 
   useEffect(() => {
     if (formData.payeeId && payees.length > 0) {
@@ -82,7 +86,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     if (
       !formData.accountId ||
       !formData.payeeId ||
-      (!isTransfer && !formData.categoryId)
+      (!isTransfer && !isIncome && !formData.categoryId)
     ) {
       setError("Please fill in all required fields");
       return;
@@ -106,6 +110,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           categoryId: "",
           amount: "",
           memo: "",
+          transactionType: "expense",
         });
       }
     } catch (error) {
@@ -151,6 +156,23 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         />
       </div>
 
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="income-toggle"
+          checked={formData.transactionType === "income"}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onCheckedChange={(checked: any) =>
+            setFormData((prev) => ({
+              ...prev,
+              transactionType: checked ? "income" : "expense",
+            }))
+          }
+        />
+        <label htmlFor="income-toggle" className="text-sm font-medium">
+          This is income
+        </label>
+      </div>
+
       <div>
         <ComboboxWithCreate
           placeholder="Select payee"
@@ -170,11 +192,19 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       </div>
 
       <div>
-        {isTransfer ? (
+        {isTransfer && (
           <p className="text-sm text-muted-foreground mt-1">
             Transfers between accounts don&apos;t have categories
           </p>
-        ) : (
+        )}
+
+        {isIncome && (
+          <p className="text-sm text-muted-foreground mt-1">
+            Income don&apos;t have categories
+          </p>
+        )}
+
+        {!isTransfer && !isIncome && (
           <ComboboxWithCreate
             placeholder={
               isTransfer

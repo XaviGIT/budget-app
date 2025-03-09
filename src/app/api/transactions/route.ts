@@ -142,37 +142,30 @@ export async function POST(request: Request) {
   try {
     const data = await request.json();
 
-    const sourceAccount = await prisma.account.findUnique({
-      where: { id: data.accountId },
-    });
-
     const targetPayee = await prisma.payee.findUnique({
       where: { id: data.payeeId },
       include: { account: true },
     });
 
-    if (!sourceAccount) {
-      return NextResponse.json(
-        { error: "Source account not found" },
-        { status: 400 }
-      );
-    }
+    // Determine transaction type
+    const isTransfer = !!targetPayee?.account;
+    const isIncome = data.transactionType === "income"; // Add this field to your form
 
     const amount = parseFloat(data.amount);
 
-    const isTransfer = !!targetPayee?.account;
-
     const transaction = await prisma.$transaction(async (tx) => {
+      const amountValue = isIncome ? amount : -amount;
+
       // Create the transaction
       const transaction = await tx.transaction.create({
         data: {
           date: new Date(data.date),
           accountId: data.accountId,
           payeeId: data.payeeId,
-          categoryId: isTransfer ? null : data.categoryId,
-          amount: -amount, // Negative for outflow
+          categoryId: isTransfer || isIncome ? null : data.categoryId, // Optional for income too
+          amount: amountValue,
           memo: data.memo || null,
-          toAccountId: targetPayee?.account?.id || null,
+          toAccountId: isTransfer ? targetPayee?.account?.id : null,
         },
         include: {
           account: {
@@ -190,28 +183,31 @@ export async function POST(request: Request) {
         },
       });
 
-      // Update source account balance
-      await tx.account.update({
-        where: { id: data.accountId },
-        data: { balance: { decrement: amount } },
-      });
+      // Update account balance correctly based on transaction type
+      if (isIncome) {
+        await tx.account.update({
+          where: { id: data.accountId },
+          data: { balance: { increment: amount } },
+        });
+      } else if (isTransfer) {
+        // Handle transfer (as you already do)
+        await tx.account.update({
+          where: { id: data.accountId },
+          data: { balance: { decrement: amount } },
+        });
 
-      // If this is a transfer, update target account balance
-      if (targetPayee?.account) {
-        // Handle differently based on account type
-        if (targetPayee.account.type === "CREDIT") {
-          // For credit accounts, decreasing balance means reducing debt
-          await tx.account.update({
-            where: { id: targetPayee.account.id },
-            data: { balance: { decrement: amount } },
-          });
-        } else {
-          // For regular accounts, increase the balance
+        if (targetPayee?.account) {
           await tx.account.update({
             where: { id: targetPayee.account.id },
             data: { balance: { increment: amount } },
           });
         }
+      } else {
+        // Normal expense
+        await tx.account.update({
+          where: { id: data.accountId },
+          data: { balance: { decrement: amount } },
+        });
       }
 
       return transaction;

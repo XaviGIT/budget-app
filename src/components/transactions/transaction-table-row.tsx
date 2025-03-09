@@ -206,12 +206,16 @@ export function TransactionRowItem({
   ) {
     const amount = Math.abs(transaction.amount);
 
-    if (transaction.toAccountId) {
-      // return `${formatCurrency(amount)} → ${transaction.payee.name}`;
+    if (transaction.amount > 0) {
+      // Income
+      return `+${formatCurrency(amount)}`;
+    } else if (transaction.toAccountId) {
+      // Transfer
       return `${formatCurrency(amount)}`;
+    } else {
+      // Expense
+      return `-${formatCurrency(amount)}`;
     }
-
-    return `-${formatCurrency(amount)}`;
   }
 
   return (
@@ -231,9 +235,11 @@ export function TransactionRowItem({
       <TableCell>{transaction.memo}</TableCell>
       <TableCell
         className={`text-right ${
-          transaction.toAccountId
-            ? "text-blue-600" // Transfer
-            : "text-red-600" // Expense
+          transaction.amount > 0
+            ? "text-green-600" // Income
+            : transaction.toAccountId
+              ? "text-blue-600" // Transfer
+              : "text-red-600" // Expense
         }`}
       >
         {formatTransactionAmount(transaction)}
